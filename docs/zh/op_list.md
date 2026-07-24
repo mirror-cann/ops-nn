@@ -2149,6 +2149,16 @@
   </tr>
   <tr>
     <td>index</td>
+    <td><a href="../../index/sparse_segment_mean_grad/README.md">sparse_segment_mean_grad</a></td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✗</td>
+    <td>✓</td>
+    <td>AI CPU</td>
+    <td>SparseSegmentMeanGrad 是 SparseSegmentMean 的反向传播算子，用于计算稀疏分段求均值操作的梯度。</td>
+  </tr>
+  <tr>
+    <td>index</td>
     <td><a href="../../index/sparse_segment_sum_grad/README.md">sparse_segment_sum_grad</a></td>
     <td>✓</td>
     <td>✓</td>
