@@ -70,6 +70,10 @@ static __aicore__ inline void LoadL0c2GmForNz2Dn(Intf* self, const GlobalTensor<
     // NZ (1, cin1, hi, wi, cin0) -> DN (n, cin, di, hi, wi)
     FixpipeParamsC310<CO2Layout::COLUMN_MAJOR> fixPipeParams;
     SetFixPipeQuantVal<Intf>(self, fixPipeParams);
+    // SplitK/SplitDk场景需将FP32中间结果写入workspace继续累加，避免Fixpipe提前量化为DstT
+    if (self->ctx.enableSplitDk_ || self->ctx.useUbAccumForSplitK_) {
+        fixPipeParams.quantPre = QuantMode_t::NoQuant;
+    }
 
     fixPipeParams.params.dnNum = 1;             // not use
     fixPipeParams.params.srcNzMatrixStride = 0; // loop3_src_stride
