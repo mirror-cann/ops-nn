@@ -124,3 +124,4 @@ $$
 | 调用方式 | 调用样例                                                                   | 说明                                                           |
 |--------------|------------------------------------------------------------------------|--------------------------------------------------------------|
 | aclnn调用 | [test_aclnn_mx_to_block_mx_quant](./examples/arch35/test_aclnn_mx_to_block_mx_quant.cpp) | 通过[aclnnMxToBlockMxQuant](./docs/aclnnMxToBlockMxQuant.md)接口方式调用MxToBlockMxQuant算子。 |
+| PyTorch API | - | 通过[mx_to_block_mx_quant](./docs/torchapi_mx_to_block_mx_quant.md)接口调用MxToBlockMxQuant算子。 |
