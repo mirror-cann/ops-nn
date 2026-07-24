@@ -142,5 +142,5 @@
 
           ```bash
           aclnnAddmmGetWorkspaceSize failed. ERROR: 161001
-          [ERROR msg][PID:xxxx] xxx(timestamp) AclNN_Parameter_Error(EZ1001): Expected a proper Tensor but got null for argument addmmTennsor.self.
+          [ERROR msg][PID:xxxx] xxx(timestamp) AclNN_Parameter_Error(EZ1001): Expected a proper Tensor but got null for argument addmmTensor.self.
           ```

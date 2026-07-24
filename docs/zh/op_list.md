@@ -4757,7 +4757,7 @@
     <td>✗</td>
     <td>✓</td>
     <td>AI Core</td>
-    <td>根据key值查看table中是否存在key；如果存在则不插入value值，并且导出key当前位置上的值；如果不存在则对对key进行hash，找到位置后插入value。</td>
+    <td>根据key值查看table中是否存在key；如果存在则不插入value值，并且导出key当前位置上的值；如果不存在则对key进行hash，找到位置后插入value。</td>
   </tr>
   <tr>
     <td>hash</td>
