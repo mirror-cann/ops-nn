@@ -8,6 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 #include <array>
+#include <memory>
 #include <gmock/gmock.h>
 #include "gtest/gtest.h"
 #include <thread>
@@ -65,17 +66,63 @@ protected:
 
 class l2_weight_quant_batch_matmul_v2_test_310P : public testing::TestWithParam<WeightQuantBatchMatmulV2TestParam> {
 protected:
-    static void SetUpTestCase() { cout << "l2_weight_quant_batch_matmul_v2_test_310P SetUp" << endl; }
-
-    static void TearDownTestCase() { cout << "l2_weight_quant_batch_matmul_v2_test_310P TearDown" << endl; }
+    static void SetUpTestCase()
+    {
+        cout << "l2_weight_quant_batch_matmul_v2_test_310P SetUp" << endl;
+        archManager = std::make_unique<op::NpuArchManager>(NpuArch::DAV_2002);
+        versionManager = std::make_unique<op::SocVersionManager>(op::SocVersion::ASCEND310P);
+    }
+    static void TearDownTestCase()
+    {
+        versionManager.reset();
+        archManager.reset();
+        cout << "l2_weight_quant_batch_matmul_v2_test_310P TearDown" << endl;
+    }
+    static std::unique_ptr<op::NpuArchManager> archManager;
+    static std::unique_ptr<op::SocVersionManager> versionManager;
 };
+std::unique_ptr<op::NpuArchManager> l2_weight_quant_batch_matmul_v2_test_310P::archManager;
+std::unique_ptr<op::SocVersionManager> l2_weight_quant_batch_matmul_v2_test_310P::versionManager;
+
+class l2_weight_quant_batch_matmul_v2_test_910 : public testing::TestWithParam<WeightQuantBatchMatmulV2TestParam> {
+protected:
+    static void SetUpTestCase()
+    {
+        cout << "l2_weight_quant_batch_matmul_v2_test_910 SetUp" << endl;
+        archManager = std::make_unique<op::NpuArchManager>(NpuArch::DAV_1001);
+        versionManager = std::make_unique<op::SocVersionManager>(op::SocVersion::ASCEND910);
+    }
+    static void TearDownTestCase()
+    {
+        versionManager.reset();
+        archManager.reset();
+        cout << "l2_weight_quant_batch_matmul_v2_test_910 TearDown" << endl;
+    }
+    static std::unique_ptr<op::NpuArchManager> archManager;
+    static std::unique_ptr<op::SocVersionManager> versionManager;
+};
+std::unique_ptr<op::NpuArchManager> l2_weight_quant_batch_matmul_v2_test_910::archManager;
+std::unique_ptr<op::SocVersionManager> l2_weight_quant_batch_matmul_v2_test_910::versionManager;
 
 class l2_weight_quant_batch_matmul_v2_test_950 : public testing::TestWithParam<WeightQuantBatchMatmulV2TestParam> {
 protected:
-    static void SetUpTestCase() { cout << "l2_weight_quant_batch_matmul_v2_test_950 SetUp" << endl; }
-
-    static void TearDownTestCase() { cout << "l2_weight_quant_batch_matmul_v2_test_950 TearDown" << endl; }
+    static void SetUpTestCase()
+    {
+        cout << "l2_weight_quant_batch_matmul_v2_test_950 SetUp" << endl;
+        archManager = std::make_unique<op::NpuArchManager>(NpuArch::DAV_3510);
+        versionManager = std::make_unique<op::SocVersionManager>(op::SocVersion::ASCEND950);
+    }
+    static void TearDownTestCase()
+    {
+        versionManager.reset();
+        archManager.reset();
+        cout << "l2_weight_quant_batch_matmul_v2_test_950 TearDown" << endl;
+    }
+    static std::unique_ptr<op::NpuArchManager> archManager;
+    static std::unique_ptr<op::SocVersionManager> versionManager;
 };
+std::unique_ptr<op::NpuArchManager> l2_weight_quant_batch_matmul_v2_test_950::archManager;
+std::unique_ptr<op::SocVersionManager> l2_weight_quant_batch_matmul_v2_test_950::versionManager;
 
 static vector<int64_t> CreateFractalNZShape(const vector<int64_t>& viewShape, const aclDataType& dtype)
 {
@@ -239,6 +286,12 @@ TEST_P(l2_weight_quant_batch_matmul_v2_test_910B2, ascend910B2_generalTest)
 }
 
 TEST_P(l2_weight_quant_batch_matmul_v2_test_310P, ascend310P_generalTest)
+{
+    WeightQuantBatchMatmulV2TestParam param = GetParam();
+    TestOneParamCase(param);
+}
+
+TEST_P(l2_weight_quant_batch_matmul_v2_test_910, ascend910_generalTest)
 {
     WeightQuantBatchMatmulV2TestParam param = GetParam();
     TestOneParamCase(param);
@@ -1076,6 +1129,31 @@ static WeightQuantBatchMatmulV2TestParam casesParamsAscend910B2[] = {
      true,
      true,
      ACLNN_ERR_PARAM_INVALID},
+    {"testWeightQuantBatchMatmulV2WeightNZInt8",
+     {96, 11264},
+     {11264, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     0,
+     {96, 1664},
+     ACL_FLOAT16,
+     ACL_INT8,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_UINT64,
+     ACL_FLOAT,
+     ACL_FLOAT16,
+     ACL_INT8,
+     ACL_FORMAT_ND,
+     ACL_FORMAT_FRACTAL_NZ,
+     true,
+     true,
+     true,
+     true,
+     ACLNN_SUCCESS},
     {"testWeightQuantBatchMatmulV2Exceed65536",
      {96, 65536},
      {65536, 1664},
@@ -2077,6 +2155,31 @@ static WeightQuantBatchMatmulV2TestParam casesParamsAscend310P[] = {
      false,
      false,
      ACLNN_SUCCESS},
+    {"normal_case_nz",
+     {96, 11264},
+     {1664, 11264},
+     {1664, 1},
+     {1664, 1},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     0,
+     {96, 1664},
+     ACL_FLOAT16,
+     ACL_INT8,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_UINT64,
+     ACL_FLOAT,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_FORMAT_ND,
+     ACL_FORMAT_FRACTAL_NZ,
+     true,
+     false,
+     false,
+     false,
+     ACLNN_SUCCESS},
     {"normal_antiquant_group_case_nd",
      {96, 11264},
      {11264, 1664},
@@ -2097,6 +2200,31 @@ static WeightQuantBatchMatmulV2TestParam casesParamsAscend310P[] = {
      ACL_FLOAT16,
      ACL_FORMAT_ND,
      ACL_FORMAT_ND,
+     true,
+     false,
+     false,
+     false,
+     ACLNN_SUCCESS},
+    {"normal_antiquant_group_case_nz",
+     {96, 11264},
+     {1664, 11264},
+     {1664, 352},
+     {1664, 352},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     32,
+     {96, 1664},
+     ACL_FLOAT16,
+     ACL_INT8,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_UINT64,
+     ACL_FLOAT,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_FORMAT_ND,
+     ACL_FORMAT_FRACTAL_NZ,
      true,
      false,
      false,
@@ -2202,6 +2330,31 @@ static WeightQuantBatchMatmulV2TestParam casesParamsAscend310P[] = {
      false,
      false,
      ACLNN_ERR_PARAM_INVALID},
+    {"normal_case_batch_nd",
+     {1, 96, 11264},
+     {3, 11264, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     0,
+     {3, 96, 1664},
+     ACL_FLOAT16,
+     ACL_INT8,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_UINT64,
+     ACL_FLOAT,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_FORMAT_ND,
+     ACL_FORMAT_ND,
+     true,
+     false,
+     false,
+     false,
+     ACLNN_SUCCESS},
     {"antiquant_group_invalid_case_nz",
      {96, 11264},
      {1664, 11264},
@@ -2287,7 +2440,169 @@ static WeightQuantBatchMatmulV2TestParam casesParamsAscend310P[] = {
      NOT_CONTIGUOUS},
 };
 
+static WeightQuantBatchMatmulV2TestParam casesParamsAscend910[] = {
+    {"normal_case_nd_invalid_soc",
+     {96, 11264},
+     {11264, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     0,
+     {96, 1664},
+     ACL_FLOAT16,
+     ACL_INT8,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_UINT64,
+     ACL_FLOAT,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_FORMAT_ND,
+     ACL_FORMAT_ND,
+     true,
+     false,
+     false,
+     false,
+     ACLNN_ERR_RUNTIME_ERROR},
+};
+
 static WeightQuantBatchMatmulV2TestParam casesParamsAscend950[] = {
+    {"Ascend950_case_nd_f8_invalid_soc",
+     {96, 11264},
+     {11264, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     0,
+     {96, 1664},
+     ACL_FLOAT16,
+     ACL_FLOAT8_E4M3FN,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_UINT64,
+     ACL_FLOAT,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_FORMAT_ND,
+     ACL_FORMAT_ND,
+     true,
+     false,
+     false,
+     false,
+     ACLNN_ERR_PARAM_INVALID},
+    {"Ascend950_case_nd_w4_nz_transweight_error",
+     {2, 64},
+     {64, 128},
+     {1, 128},
+     {1, 128},
+     {1, 128},
+     {1, 128},
+     {1, 128},
+     0,
+     {2, 128},
+     ACL_FLOAT16,
+     ACL_INT4,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_UINT64,
+     ACL_FLOAT,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_FORMAT_ND,
+     ACL_FORMAT_FRACTAL_NZ,
+     true,
+     false,
+     false,
+     false,
+     ACLNN_ERR_PARAM_INVALID,
+     CONTIGUOUS,
+     TRANSPOSE_LAST_TWO_DIMS,
+     TRANSPOSE_LAST_TWO_DIMS},
+    {"Ascend950_case_nd_aqoffset_int32_invalid",
+     {96, 11264},
+     {11264, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     0,
+     {96, 1664},
+     ACL_FLOAT16,
+     ACL_INT8,
+     ACL_FLOAT16,
+     ACL_INT32,
+     ACL_UINT64,
+     ACL_FLOAT,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_FORMAT_ND,
+     ACL_FORMAT_ND,
+     true,
+     false,
+     false,
+     false,
+     ACLNN_ERR_PARAM_INVALID},
+    {"Ascend950_case_a16mxf4_nd_weight_fp4",
+     {2, 64},
+     {64, 128},
+     {2, 128},
+     {2, 128},
+     {1, 128},
+     {1, 128},
+     {1, 128},
+     32,
+     {2, 128},
+     ACL_FLOAT16,
+     ACL_FLOAT4_E2M1,
+     ACL_FLOAT8_E8M0,
+     ACL_FLOAT16,
+     ACL_UINT64,
+     ACL_FLOAT,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_FORMAT_ND,
+     ACL_FORMAT_ND,
+     false,
+     false,
+     false,
+     false,
+     ACLNN_SUCCESS,
+     CONTIGUOUS,
+     CONTIGUOUS,
+     CONTIGUOUS},
+    {"Ascend950_case_a16mxf4_nd_weight_fp32",
+     {2, 64},
+     {64, 16}, // weight N=16 is packed (8 FP4 in 1 FP32), host unpacks to logical N=128
+     {2, 128},
+     {2, 128},
+     {1, 128},
+     {1, 128},
+     {1, 128},
+     32,
+     {2, 128},
+     ACL_FLOAT16,
+     ACL_FLOAT,
+     ACL_FLOAT8_E8M0,
+     ACL_FLOAT16,
+     ACL_UINT64,
+     ACL_FLOAT,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_FORMAT_ND,
+     ACL_FORMAT_ND,
+     false,
+     false,
+     false,
+     false,
+     ACLNN_SUCCESS,
+     CONTIGUOUS,
+     CONTIGUOUS,
+     CONTIGUOUS},
     {"Ascend950_case_a16mxf4_nd_invalid_group_size",
      {2, 64},
      {64, 128},
@@ -2434,5 +2749,54 @@ INSTANTIATE_TEST_SUITE_P(Ascend910B2_WeightQuantBatchMatmulV2, l2_weight_quant_b
                          testing::ValuesIn(casesParamsAscend910B2));
 INSTANTIATE_TEST_SUITE_P(Ascend310P_WeightQuantBatchMatmulV2, l2_weight_quant_batch_matmul_v2_test_310P,
                          testing::ValuesIn(casesParamsAscend310P));
+INSTANTIATE_TEST_SUITE_P(Ascend910_WeightQuantBatchMatmulV2, l2_weight_quant_batch_matmul_v2_test_910,
+                         testing::ValuesIn(casesParamsAscend910));
 INSTANTIATE_TEST_SUITE_P(Ascend950_WeightQuantBatchMatmulV2, l2_weight_quant_batch_matmul_v2_test_950,
                          testing::ValuesIn(casesParamsAscend950));
+
+static void ThreadFunc(const WeightQuantBatchMatmulV2TestParam* params, size_t testcase_num, size_t thread_idx,
+                       size_t thread_num, NpuArch arch, op::SocVersion soc)
+{
+    op::NpuArchManager archMgr(arch);
+    op::SocVersionManager socMgr(soc);
+    for (size_t idx = thread_idx; idx < testcase_num; idx += thread_num) {
+        TestOneParamCase(params[idx]);
+    }
+}
+
+static void TestMultiThread(const WeightQuantBatchMatmulV2TestParam* params, size_t testcase_num, size_t thread_num,
+                            NpuArch arch, op::SocVersion soc)
+{
+    std::vector<std::thread> threads(thread_num);
+    for (size_t idx = 0; idx < thread_num; ++idx) {
+        threads[idx] = std::thread(ThreadFunc, params, testcase_num, idx, thread_num, arch, soc);
+    }
+
+    for (size_t idx = 0; idx < thread_num; ++idx) {
+        threads[idx].join();
+    }
+}
+
+TEST_F(l2_weight_quant_batch_matmul_v2_test_910B2, ascend910B2_multi_thread)
+{
+    TestMultiThread(casesParamsAscend910B2, sizeof(casesParamsAscend910B2) / sizeof(WeightQuantBatchMatmulV2TestParam),
+                    3, NpuArch::DAV_2201, op::SocVersion::ASCEND910B);
+}
+
+TEST_F(l2_weight_quant_batch_matmul_v2_test_310P, ascend310P_multi_thread)
+{
+    TestMultiThread(casesParamsAscend310P, sizeof(casesParamsAscend310P) / sizeof(WeightQuantBatchMatmulV2TestParam), 3,
+                    NpuArch::DAV_2002, op::SocVersion::ASCEND310P);
+}
+
+TEST_F(l2_weight_quant_batch_matmul_v2_test_910, ascend910_multi_thread)
+{
+    TestMultiThread(casesParamsAscend910, sizeof(casesParamsAscend910) / sizeof(WeightQuantBatchMatmulV2TestParam), 3,
+                    NpuArch::DAV_1001, op::SocVersion::ASCEND910);
+}
+
+TEST_F(l2_weight_quant_batch_matmul_v2_test_950, ascend950_multi_thread)
+{
+    TestMultiThread(casesParamsAscend950, sizeof(casesParamsAscend950) / sizeof(WeightQuantBatchMatmulV2TestParam), 3,
+                    NpuArch::DAV_3510, op::SocVersion::ASCEND950);
+}

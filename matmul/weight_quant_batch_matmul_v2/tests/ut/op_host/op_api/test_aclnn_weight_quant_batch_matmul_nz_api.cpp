@@ -8,6 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 #include <array>
+#include <memory>
 #include <gmock/gmock.h>
 #include "gtest/gtest.h"
 #include <thread>
@@ -58,10 +59,26 @@ struct WeightQuantBatchMatmulNzTestParam {
 
 class l2_weight_quant_batch_matmul_nz_test_950 : public testing::TestWithParam<WeightQuantBatchMatmulNzTestParam> {
 protected:
-    static void SetUpTestCase() { cout << "l2_weight_quant_batch_matmul_nz_test_950 SetUp" << endl; }
+    static void SetUpTestCase()
+    {
+        cout << "l2_weight_quant_batch_matmul_nz_test_950 SetUp" << endl;
+        archManager = std::make_unique<op::NpuArchManager>(NpuArch::DAV_3510);
+        versionManager = std::make_unique<op::SocVersionManager>(op::SocVersion::ASCEND950);
+    }
 
-    static void TearDownTestCase() { cout << "l2_weight_quant_batch_matmul_nz_test_950 TearDown" << endl; }
+    static void TearDownTestCase()
+    {
+        versionManager.reset();
+        archManager.reset();
+        cout << "l2_weight_quant_batch_matmul_nz_test_950 TearDown" << endl;
+    }
+
+    static std::unique_ptr<op::NpuArchManager> archManager;
+    static std::unique_ptr<op::SocVersionManager> versionManager;
 };
+
+std::unique_ptr<op::NpuArchManager> l2_weight_quant_batch_matmul_nz_test_950::archManager;
+std::unique_ptr<op::SocVersionManager> l2_weight_quant_batch_matmul_nz_test_950::versionManager;
 
 static vector<int64_t> CreateFractalNZShape(const vector<int64_t>& viewShape, const aclDataType& dtype)
 {
@@ -69,9 +86,10 @@ static vector<int64_t> CreateFractalNZShape(const vector<int64_t>& viewShape, co
         throw invalid_argument("size of viewShape must >= 2 when create fractalNz shape, actual is " +
                                viewShape.size());
     }
-    if (dtype != ACL_INT8 && dtype != ACL_INT4 && dtype != ACL_INT32) {
-        throw invalid_argument("only support dtype int8/int4/int32 when create fractalNz shape, actual is " +
-                               static_cast<int32_t>(dtype));
+    if (dtype != ACL_INT8 && dtype != ACL_INT4 && dtype != ACL_INT32 && dtype != ACL_FLOAT4_E2M1) {
+        throw invalid_argument(
+            "only support dtype int8/int4/int32/float4_e2m1 when create fractalNz shape, actual is " +
+            static_cast<int32_t>(dtype));
     }
 
     // nd转Nz时会把viewShape最后2维拆成4维
@@ -225,6 +243,34 @@ TEST_P(l2_weight_quant_batch_matmul_nz_test_950, ascend950_generalTest)
 }
 
 static WeightQuantBatchMatmulNzTestParam casesParamsAscend950[] = {
+    {"Ascend950_case_a16mxf4_nd_weight_fp4",
+     {2, 64},
+     {64, 128},
+     {2, 128},
+     {2, 128},
+     {1, 128},
+     {1, 128},
+     {1, 128},
+     32,
+     {2, 128},
+     ACL_FLOAT16,
+     ACL_FLOAT4_E2M1,
+     ACL_FLOAT8_E8M0,
+     ACL_FLOAT16,
+     ACL_UINT64,
+     ACL_FLOAT,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_FORMAT_ND,
+     ACL_FORMAT_FRACTAL_NZ,
+     false,
+     false,
+     false,
+     false,
+     ACLNN_SUCCESS,
+     CONTIGUOUS,
+     CONTIGUOUS,
+     CONTIGUOUS},
     {"Ascend950_case_nd_w4_nz_transweight_error",
      {2, 64},
      {64, 128},
@@ -249,7 +295,7 @@ static WeightQuantBatchMatmulNzTestParam casesParamsAscend950[] = {
      false,
      false,
      false,
-     static_cast<aclnnStatus>(361001),
+     ACLNN_ERR_PARAM_INVALID,
      CONTIGUOUS,
      TRANSPOSE_LAST_TWO_DIMS,
      TRANSPOSE_LAST_TWO_DIMS},
@@ -257,3 +303,37 @@ static WeightQuantBatchMatmulNzTestParam casesParamsAscend950[] = {
 
 INSTANTIATE_TEST_SUITE_P(Ascend950_WeightQuantBatchMatmulNz, l2_weight_quant_batch_matmul_nz_test_950,
                          testing::ValuesIn(casesParamsAscend950));
+
+static void ThreadFunc(const WeightQuantBatchMatmulNzTestParam* params, size_t testcase_num, size_t thread_idx,
+                       size_t thread_num)
+{
+    op::NpuArchManager archMgr(NpuArch::DAV_3510);
+    op::SocVersionManager socMgr(op::SocVersion::ASCEND950);
+    for (size_t idx = thread_idx; idx < testcase_num; idx += thread_num) {
+        TestOneParamCase(params[idx]);
+    }
+}
+
+static void TestMultiThread(const WeightQuantBatchMatmulNzTestParam* params, size_t testcase_num, size_t thread_num)
+{
+    std::vector<std::thread> threads(thread_num);
+    for (size_t idx = 0; idx < thread_num; ++idx) {
+        threads[idx] = std::thread(ThreadFunc, params, testcase_num, idx, thread_num);
+    }
+
+    for (size_t idx = 0; idx < thread_num; ++idx) {
+        threads[idx].join();
+    }
+}
+
+TEST_F(l2_weight_quant_batch_matmul_nz_test_950, ascend950_single_thread)
+{
+    for (size_t i = 0; i < sizeof(casesParamsAscend950) / sizeof(WeightQuantBatchMatmulNzTestParam); ++i) {
+        TestOneParamCase(casesParamsAscend950[i]);
+    }
+}
+
+TEST_F(l2_weight_quant_batch_matmul_nz_test_950, ascend950_multi_thread)
+{
+    TestMultiThread(casesParamsAscend950, sizeof(casesParamsAscend950) / sizeof(WeightQuantBatchMatmulNzTestParam), 3);
+}

@@ -8,6 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 #include <array>
+#include <memory>
 #include <gmock/gmock.h>
 #include "gtest/gtest.h"
 #include <thread>
@@ -65,6 +66,46 @@ protected:
 
     static void TearDownTestCase() { cout << "l2_weight_quant_batch_matmul_v3_test_910B2 TearDown" << endl; }
 };
+
+class l2_weight_quant_batch_matmul_v3_test_310P : public testing::TestWithParam<WeightQuantBatchMatmulV3TestParam> {
+protected:
+    static void SetUpTestCase()
+    {
+        cout << "l2_weight_quant_batch_matmul_v3_test_310P SetUp" << endl;
+        archManager = std::make_unique<op::NpuArchManager>(NpuArch::DAV_2002);
+        versionManager = std::make_unique<op::SocVersionManager>(op::SocVersion::ASCEND310P);
+    }
+    static void TearDownTestCase()
+    {
+        versionManager.reset();
+        archManager.reset();
+        cout << "l2_weight_quant_batch_matmul_v3_test_310P TearDown" << endl;
+    }
+    static std::unique_ptr<op::NpuArchManager> archManager;
+    static std::unique_ptr<op::SocVersionManager> versionManager;
+};
+std::unique_ptr<op::NpuArchManager> l2_weight_quant_batch_matmul_v3_test_310P::archManager;
+std::unique_ptr<op::SocVersionManager> l2_weight_quant_batch_matmul_v3_test_310P::versionManager;
+
+class l2_weight_quant_batch_matmul_v3_test_910 : public testing::TestWithParam<WeightQuantBatchMatmulV3TestParam> {
+protected:
+    static void SetUpTestCase()
+    {
+        cout << "l2_weight_quant_batch_matmul_v3_test_910 SetUp" << endl;
+        archManager = std::make_unique<op::NpuArchManager>(NpuArch::DAV_1001);
+        versionManager = std::make_unique<op::SocVersionManager>(op::SocVersion::ASCEND910);
+    }
+    static void TearDownTestCase()
+    {
+        versionManager.reset();
+        archManager.reset();
+        cout << "l2_weight_quant_batch_matmul_v3_test_910 TearDown" << endl;
+    }
+    static std::unique_ptr<op::NpuArchManager> archManager;
+    static std::unique_ptr<op::SocVersionManager> versionManager;
+};
+std::unique_ptr<op::NpuArchManager> l2_weight_quant_batch_matmul_v3_test_910::archManager;
+std::unique_ptr<op::SocVersionManager> l2_weight_quant_batch_matmul_v3_test_910::versionManager;
 
 static vector<int64_t> CreateFractalNZShape(const vector<int64_t>& viewShape, const aclDataType& dtype)
 {
@@ -221,6 +262,18 @@ static void TestOneParamCase(const WeightQuantBatchMatmulV3TestParam& param)
 }
 
 TEST_P(l2_weight_quant_batch_matmul_v3_test_910B2, ascend910B2_generalTest)
+{
+    WeightQuantBatchMatmulV3TestParam param = GetParam();
+    TestOneParamCase(param);
+}
+
+TEST_P(l2_weight_quant_batch_matmul_v3_test_310P, ascend310P_generalTest)
+{
+    WeightQuantBatchMatmulV3TestParam param = GetParam();
+    TestOneParamCase(param);
+}
+
+TEST_P(l2_weight_quant_batch_matmul_v3_test_910, ascend910_generalTest)
 {
     WeightQuantBatchMatmulV3TestParam param = GetParam();
     TestOneParamCase(param);
@@ -981,6 +1034,32 @@ static WeightQuantBatchMatmulV3TestParam casesParamsAscend910B2[] = {
      true,
      true,
      ACLNN_ERR_PARAM_INVALID},
+    {"testWeightQuantBatchMatmulV3WeightNZInt8",
+     {96, 11264},
+     {11264, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     0,
+     0,
+     {96, 1664},
+     ACL_FLOAT16,
+     ACL_INT8,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_UINT64,
+     ACL_FLOAT,
+     ACL_FLOAT16,
+     ACL_INT8,
+     ACL_FORMAT_ND,
+     ACL_FORMAT_FRACTAL_NZ,
+     true,
+     true,
+     true,
+     true,
+     ACLNN_SUCCESS},
     {"testWeightQuantBatchMatmulV3Exceed65536",
      {96, 65536},
      {65536, 1664},
@@ -1422,3 +1501,94 @@ static WeightQuantBatchMatmulV3TestParam casesParamsAscend910B2[] = {
 
 INSTANTIATE_TEST_SUITE_P(Ascend910B2_WeightQuantBatchMatmulV3, l2_weight_quant_batch_matmul_v3_test_910B2,
                          testing::ValuesIn(casesParamsAscend910B2));
+
+static WeightQuantBatchMatmulV3TestParam casesParamsAscend310PV3[] = {
+    {"Ascend310P_v3_normal_case",
+     {96, 11264},
+     {11264, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     0,
+     0,
+     {96, 1664},
+     ACL_FLOAT16,
+     ACL_INT8,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_UINT64,
+     ACL_FLOAT,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_FORMAT_ND,
+     ACL_FORMAT_ND,
+     true,
+     false,
+     false,
+     false,
+     ACLNN_SUCCESS},
+};
+INSTANTIATE_TEST_SUITE_P(Ascend310P_WeightQuantBatchMatmulV3, l2_weight_quant_batch_matmul_v3_test_310P,
+                         testing::ValuesIn(casesParamsAscend310PV3));
+
+static WeightQuantBatchMatmulV3TestParam casesParamsAscend910V3[] = {
+    {"Ascend910_v3_unsupported_soc",
+     {96, 11264},
+     {11264, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     {1, 1664},
+     0,
+     0,
+     {96, 1664},
+     ACL_FLOAT16,
+     ACL_INT8,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_UINT64,
+     ACL_FLOAT,
+     ACL_FLOAT16,
+     ACL_FLOAT16,
+     ACL_FORMAT_ND,
+     ACL_FORMAT_ND,
+     true,
+     false,
+     false,
+     false,
+     ACLNN_ERR_RUNTIME_ERROR},
+};
+INSTANTIATE_TEST_SUITE_P(Ascend910_WeightQuantBatchMatmulV3, l2_weight_quant_batch_matmul_v3_test_910,
+                         testing::ValuesIn(casesParamsAscend910V3));
+
+static void ThreadFunc(const WeightQuantBatchMatmulV3TestParam* params, size_t testcase_num, size_t thread_idx,
+                       size_t thread_num, NpuArch arch, op::SocVersion soc)
+{
+    op::NpuArchManager archMgr(arch);
+    op::SocVersionManager socMgr(soc);
+    for (size_t idx = thread_idx; idx < testcase_num; idx += thread_num) {
+        TestOneParamCase(params[idx]);
+    }
+}
+
+static void TestMultiThread(const WeightQuantBatchMatmulV3TestParam* params, size_t testcase_num, size_t thread_num,
+                            NpuArch arch, op::SocVersion soc)
+{
+    std::vector<std::thread> threads(thread_num);
+    for (size_t idx = 0; idx < thread_num; ++idx) {
+        threads[idx] = std::thread(ThreadFunc, params, testcase_num, idx, thread_num, arch, soc);
+    }
+
+    for (size_t idx = 0; idx < thread_num; ++idx) {
+        threads[idx].join();
+    }
+}
+
+TEST_F(l2_weight_quant_batch_matmul_v3_test_910B2, ascend910B2_multi_thread)
+{
+    TestMultiThread(casesParamsAscend910B2, sizeof(casesParamsAscend910B2) / sizeof(WeightQuantBatchMatmulV3TestParam),
+                    3, NpuArch::DAV_2201, op::SocVersion::ASCEND910B);
+}
