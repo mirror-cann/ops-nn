@@ -2159,6 +2159,16 @@
   </tr>
   <tr>
     <td>index</td>
+    <td><a href="../../index/sparse_segment_sum/README.md">sparse_segment_sum</a></td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✗</td>
+    <td>✓</td>
+    <td>AI CPU</td>
+    <td>SparseSegmentSum 用于沿稀疏分段对输入张量切片求和。</td>
+  </tr>
+  <tr>
+    <td>index</td>
     <td><a href="../../index/sparse_segment_sum_grad/README.md">sparse_segment_sum_grad</a></td>
     <td>✓</td>
     <td>✓</td>
