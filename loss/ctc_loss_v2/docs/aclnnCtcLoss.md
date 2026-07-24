@@ -290,7 +290,7 @@ aclnnStatus aclnnCtcLoss(
   若不满足前三条值域约束，CPU/GPU可能存在越界行为，导致negLogLikelihoodOut和logAlphaOut的计算结果可能与CPU/GPU存在差异。若不满足第四条值域约束，logAlphaOut在对应batch上的计算结果与CPU/GPU存在差异。
 
 - 确定性计算：
-  - aclnnCtcLoss默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
+  - aclnnCtcLoss默认确定性实现。
 
 ## 调用示例
 
