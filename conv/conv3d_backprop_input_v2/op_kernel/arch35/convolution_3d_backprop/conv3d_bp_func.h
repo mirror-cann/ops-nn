@@ -19,6 +19,7 @@
 #include "conv3d_bp_common_func.h"
 #include "conv3d_bp_large_attribute_func.h"
 #include "conv3d_bp_kernel_split_func.h"
+#include "../../../inc/macro.h"
 
 DECLARE_CHECK_IMPL(Init);
 DECLARE_CHECK_IMPL(SetOutBackprop);
@@ -204,7 +205,7 @@ __aicore__ inline void InitC04Params(Intf* self)
 template <class Intf>
 __aicore__ inline void InitParamsPart3(Intf* self)
 {
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) || (__NPU_ARCH__ == 5102)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) || __DAV_35_FAMILY__
     self->ctx.dstB2Stride_ = 0;
     self->ctx.startAddrOffset_ = 0;
     self->ctx.headWi_ = 0;
@@ -314,7 +315,7 @@ __aicore__ inline void InitParams(Intf* self)
     } else {
         InitParamsForNormal<Intf>(self);
     }
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) || (__NPU_ARCH__ == 5102)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) || __DAV_35_FAMILY__
     self->ctx.hoWo_ = static_cast<uint64_t>(self->ctx.tiling_->ho) * self->ctx.tiling_->wo;
     self->ctx.doHoWo_ = self->ctx.tiling_->dout * self->ctx.hoWo_;
     self->ctx.hiWi_ = static_cast<uint64_t>(self->ctx.tiling_->hi) * self->ctx.tiling_->wi;

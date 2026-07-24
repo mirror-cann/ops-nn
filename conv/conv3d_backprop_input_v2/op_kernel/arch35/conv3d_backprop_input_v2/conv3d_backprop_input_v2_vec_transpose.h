@@ -17,6 +17,7 @@
 #define CONV3D_BACKPROP_INPUT_V2_VEC_TRANSPOSE_ADVANCE_H
 
 #include "conv3d_backprop_input_v2_tiling_data.h"
+#include "../../../inc/macro.h"
 
 namespace AscendC {
 namespace DxVecTranspose {
@@ -24,7 +25,7 @@ static constexpr uint8_t SYNC_MODE0 = 0;
 static constexpr uint8_t SYNC_MODE2 = 2;
 static constexpr uint16_t SYNC_AIV_ONLY_ALL_DET_FLAG = 2;
 static constexpr uint16_t SYNC_AIV_AIC_DET_FLAG = 6;
-#if (__NPU_ARCH__ == 5102)
+#if __CUBE_VECTOR_FUSION_ONLY__
 static constexpr uint32_t MULTIPLE_AIV_TO_AIC = 1;
 #else
 static constexpr uint32_t MULTIPLE_AIV_TO_AIC = 2;
@@ -221,7 +222,7 @@ protected:
     }
     __aicore__ inline void VecNotifyCube()
     {
-#if (__NPU_ARCH__ == 5102)
+#if __CUBE_VECTOR_FUSION_ONLY__
         ffts_cross_core_sync(PIPE_MTE3, GetffstMsg(0x0, SYNC_AIV_AIC_DET_FLAG)); // don't support mode 0
         wait_flag_dev(PIPE_MTE3, SYNC_AIV_AIC_DET_FLAG);
         AscendC::TQueSync<PIPE_MTE3, PIPE_MTE2> sync;

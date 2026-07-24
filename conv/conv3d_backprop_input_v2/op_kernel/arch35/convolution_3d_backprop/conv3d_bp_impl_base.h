@@ -22,13 +22,14 @@
 #include "basic_api/kernel_basic_intf.h"
 #include "kernel_common.h"
 #include "../conv3d_backprop_input_v2/conv3d_backprop_input_v2_tiling_data.h"
+#include "../../../inc/macro.h"
 
 using AscendC::LoadData2DParams;
 using AscendC::LoadData3DParamsV2;
 using AscendC::MmadParams;
 using AscendC::TPipe;
 using AscendC::TQue;
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) || (__NPU_ARCH__ == 5102)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) || __DAV_35_FAMILY__
 using AscendC::LoadData2DParamsV2;
 #endif
 
@@ -177,7 +178,7 @@ public:
         DEFINE_STUCT_FIELD(LocalTensor<typename Intf::ScaleT>, scaleL1Buf_);
         DEFINE_STUCT_FIELD(GlobalTensor<float>, l0cOutGm_); // tmp workspace to store result data with fp32
         DEFINE_STUCT_FIELD(GlobalTensor<typename Intf::DstT>, l0cOutWorkspace_); // tmp workspace for kernel split
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) || (__NPU_ARCH__ == 5102)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) || __DAV_35_FAMILY__
         DEFINE_STUCT_TEMPLATE_FIELD(TBuf, b1UbPing_, TPosition::B1);
         DEFINE_STUCT_TEMPLATE_FIELD(TBuf, b1UbPong_, TPosition::B1);
         DEFINE_STUCT_TEMPLATE_FIELD(TBuf, vecBuf_, TPosition::VECIN);

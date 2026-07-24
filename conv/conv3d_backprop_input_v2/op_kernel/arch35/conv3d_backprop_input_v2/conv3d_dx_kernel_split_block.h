@@ -16,6 +16,7 @@
 #define CONV3D_DX_KERNEL_SPLIT_BLOCK_H
 
 #include "conv3d_dx_rowc_block.h"
+#include "../../../inc/macro.h"
 
 namespace AscendC {
 template <typename filterType, int filterFormat, typename dedyType, int dedyFormat, typename yType, int yFormat,
@@ -60,7 +61,7 @@ public:
         }
         this->dedx_.Init(&(tilingData->conv3DDxTiling), this->hasBias_);
 
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) || (__NPU_ARCH__ == 5102)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) || __DAV_35_FAMILY__
         InitMixCoreBuffer(workSpace);
 #endif
     }

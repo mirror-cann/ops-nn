@@ -11,6 +11,8 @@
 #ifndef CONV3D_BACKPROP_INPUT_SMALL_KERNEL_ADVANCE_H
 #define CONV3D_BACKPROP_INPUT_SMALL_KERNEL_ADVANCE_H
 
+#include "../../../inc/macro.h"
+
 namespace AscendC {
 
 constexpr uint64_t CONV3D_DX_SMALL_DQ_SCALAR_QF_ONE = 0x37800000;
@@ -319,7 +321,7 @@ private:
         mmCommand.m = curMAlign;
         mmCommand.n = curNAlign;
         bool firstMmad = true;
-#if (__NPU_ARCH__ == 5102)
+#if __FIXED_POINT_ONLY_CUBE_TO_L0C__
         if constexpr (std::is_same<dedyType, half>::value) {
             mmCommand.fixShiftVal = tiling_->fixedShiftVal;
         }

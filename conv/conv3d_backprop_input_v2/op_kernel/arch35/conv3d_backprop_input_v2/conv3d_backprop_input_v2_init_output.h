@@ -16,14 +16,10 @@
 #define CONV3D_BACKPROP_INPUT_V2_INIT_OUTPUT_ADVANCE_H
 
 #include "conv3d_backprop_input_v2_tiling_data.h"
+#include "../../../inc/macro.h"
 
 namespace AscendC {
 constexpr uint8_t VEC_FALG_ID = 5;
-#if __CCE_AICORE__ == 310 || (__NPU_ARCH__ == 5102)
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) || (__NPU_ARCH__ == 5102)
-constexpr int32_t TOTALL0CSIZE = 262144;
-#endif
-#endif
 
 enum class InitOutputFlag {
     NO_INIT = 0,
@@ -77,7 +73,7 @@ public:
             ProcessWithL0(y);
         }
         if ASCEND_IS_AIC_SCALAR {
-#if (__NPU_ARCH__ == 5102)
+#if __CUBE_VECTOR_FUSION_ONLY__
             AscendC::TQueSync<PIPE_MTE1, PIPE_MTE3> sync;
             sync.WaitFlag(VEC_FALG_ID);
 #else
@@ -88,7 +84,7 @@ public:
 
     __aicore__ inline void SyncAllCores()
     {
-#if (__NPU_ARCH__ == 5102)
+#if __CUBE_VECTOR_FUSION_ONLY__
         AscendC::TQueSync<PIPE_MTE1, PIPE_MTE3> sync;
         sync.SetFlag(VEC_FALG_ID);
 #else

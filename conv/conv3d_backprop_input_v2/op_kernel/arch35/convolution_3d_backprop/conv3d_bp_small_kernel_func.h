@@ -16,6 +16,8 @@
 #ifndef CONV3D_BP_SMALL_KERNEL_FUNC_ADVANCE_H
 #define CONV3D_BP_SMALL_KERNEL_FUNC_ADVANCE_H
 
+#include "../../../inc/macro.h"
+
 template <typename srcType>
 __aicore__ inline void InitL1ZeroValue(const LocalTensor<srcType>& tensor, bool useOffsetX = false)
 {
@@ -145,7 +147,7 @@ __aicore__ inline void LoadBiasToBT(uint32_t curN)
     LocalTensor<biasType> biasL1(TPosition::A1, GetBiasL1OffBytes(), tiling_->singleCoreCin);
     uint32_t blockCnt = DivCeil(curN * sizeof(biasType), 64) << 1;
     DataCopyParams dataCopyParams(1, static_cast<uint16_t>(blockCnt), 0, 0);
-#if (__NPU_ARCH__ == 5102)
+#if __FIXED_POINT_ONLY_CUBE_TO_L0C__
     if constexpr (std::is_same<dedyType, half>::value && std::is_same<filterType, half>::value) {
         dataCopyParams.fixShiftVal = SHIFT_VALUE_LEN - static_cast<uint8_t>(tiling_->fixedShiftVal);
     }
@@ -270,7 +272,7 @@ __aicore__ inline void CopyOut(const LocalTensor<L0cT>& c0, uint32_t batchIdx, u
     params.nSize = curN;
     params.srcStride = curMAlign;
     params.dstStride = diHiWi_;
-#if (__NPU_ARCH__ == 5102)
+#if __FIXED_POINT_ONLY_CUBE_TO_L0C__
     params.preReluMode = static_cast<ReluMode>(tiling_->enRelu);
     if constexpr (std::is_same<dedyType, half>::value && std::is_same<filterType, half>::value) {
         params.fixShiftVal = SHIFT_VALUE_LEN - static_cast<uint8_t>(tiling_->fixedShiftVal);

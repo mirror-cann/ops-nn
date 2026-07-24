@@ -18,6 +18,7 @@
 
 #include "conv3d_bp_util.h"
 #include "../../conv3d_backprop_input_v2_arch35_tiling_key.h"
+#include "../../../inc/macro.h"
 
 using namespace AscendC;
 
@@ -51,7 +52,7 @@ struct GetDstType<float> {
     using Type = float;
 };
 
-#if (__NPU_ARCH__ == 5102)
+#if __FIXED_POINT_ONLY_CUBE_TO_L0C__
 template <>
 struct GetDstType<half> {
     using Type = int32_t;

@@ -16,6 +16,7 @@
 #define CONV3D_DX_ROWC_BLOCK_ADVANCE_H
 
 #include "conv3d_dx_block_base.h"
+#include "../../../inc/macro.h"
 
 namespace AscendC {
 constexpr uint8_t LOOP_DNM = 1;
@@ -73,7 +74,7 @@ public:
             this->hasBias_ = true;
             this->biasGm_.SetGlobalBuffer((__gm__ biasType*)bias);
         }
-#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) || (__NPU_ARCH__ == 5102)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) || __DAV_35_FAMILY__
         InitMixCoreBuffer(workSpace);
 #endif
         this->dedx_.Init(&(tilingData->conv3DDxTiling), this->hasBias_);
@@ -123,7 +124,7 @@ protected:
     {
         if (this->enableVecTrans_) {
             if ASCEND_IS_AIC_SCALAR {
-#if (__NPU_ARCH__ == 5102)
+#if __CUBE_VECTOR_FUSION_ONLY__
                 AscendC::TQueSync<PIPE_MTE3, PIPE_MTE2> sync;
                 sync.WaitFlag((event_t)SYNC_AIV_AIC_DET_FLAG);
 #else

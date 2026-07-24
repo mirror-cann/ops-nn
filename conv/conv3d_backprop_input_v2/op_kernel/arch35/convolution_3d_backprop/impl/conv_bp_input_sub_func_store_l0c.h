@@ -16,6 +16,8 @@
 #ifndef CONV3D_BP_INPUT_SUB_FUNC_STORE_L0C_H
 #define CONV3D_BP_INPUT_SUB_FUNC_STORE_L0C_H
 
+#include "../../../../inc/macro.h"
+
 namespace Convolution3DBackpropFunc {
 
 template <class Intf>
@@ -86,12 +88,12 @@ static __aicore__ inline void LoadL0c2GmForNz2Dn(Intf* self, const GlobalTensor<
     // loop1_src_stride, c0_size, cin1
     fixPipeParams.srcStride = AlignUp16(self->ctx.baseUseM_); // src N stride, loop1_src_stride (unit: 32B)
     fixPipeParams.reluEn = self->ctx.tiling_->enRelu;
-#if (__NPU_ARCH__ == 5102)
+#if __FIXED_POINT_ONLY_CUBE_TO_L0C__
     fixPipeParams.preReluMode = static_cast<ReluMode>(self->ctx.tiling_->enRelu);
 #endif
     uint64_t dstOffset = ComputeDstOffset(self, fixPipeParams);
     if (self->ctx.enableSplitDk_ || self->ctx.useUbAccumForSplitK_) {
-#if (__NPU_ARCH__ != 5102)
+#if !__CUBE_VECTOR_FUSION_ONLY__
         if constexpr (std::is_same<typename Intf::L0cT, int32_t>::value) {
             Fixpipe<float, float, CFG_COLUMN_MAJOR>(self->ctx.l0cOutGm_[dstOffset],
                                                     useC1Buf.template ReinterpretCast<float>(), fixPipeParams);
@@ -145,7 +147,7 @@ static __aicore__ inline void LoadL0c2GmForNz2Nd(Intf* self, const GlobalTensor<
         fixPipeParams.deqScalar = DQ_SCALAR_ONE;
     }
     if (self->ctx.useUbAccumForSplitK_) {
-#if (__NPU_ARCH__ != 5102)
+#if !__CUBE_VECTOR_FUSION_ONLY__
         // 写入workspace需要保证数据连续便于UB搬运和Cast
         fixPipeParams.dstStride = self->ctx.baseUseN_;
         Fixpipe<float, float, CFG_ROW_MAJOR>(self->ctx.l0cOutGm_[dstOffset], useC1Buf, fixPipeParams);
@@ -213,7 +215,7 @@ static __aicore__ inline void LoadL0c2GmDnForKernelSplitH(Intf* self, const Glob
     // loop2_dst_stride, element, c
     fixPipeParams.dstStride = self->ctx.diHiWi_; // dst N stride, loop2_dst_stride (unit: element)
     fixPipeParams.reluEn = self->ctx.tiling_->enRelu;
-#if (__NPU_ARCH__ == 5102)
+#if __FIXED_POINT_ONLY_CUBE_TO_L0C__
     fixPipeParams.preReluMode = static_cast<ReluMode>(self->ctx.tiling_->enRelu);
 #endif
     int64_t srcOffset = 0;
@@ -274,8 +276,8 @@ static __aicore__ inline void LoadL0c2GmNdForKernelSplitH(Intf* self, const Glob
     fixPipeParams.srcStride = AlignUp16(self->ctx.baseUseM_); // src N stride, loop1_src_stride (unit: 32B)
     // loop2_dst_stride, element, c
     fixPipeParams.dstStride = self->ctx.tiling_->cin; // dst N stride, loop2_dst_stride (unit: element)
-#if (__NPU_ARCH__ == 5102)
     fixPipeParams.reluEn = self->ctx.tiling_->enRelu;
+#if __FIXED_POINT_ONLY_CUBE_TO_L0C__
     fixPipeParams.preReluMode = static_cast<ReluMode>(self->ctx.tiling_->enRelu);
 #endif
     int64_t srcOffset = 0;

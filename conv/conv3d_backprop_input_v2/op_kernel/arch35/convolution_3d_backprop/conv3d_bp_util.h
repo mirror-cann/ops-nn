@@ -18,8 +18,9 @@
 
 #include "kernel_common.h"
 #include "basic_api/kernel_basic_intf.h"
+#include "../../../inc/macro.h"
 
-#if (__NPU_ARCH__ == 5102)
+#if __CUBE_VECTOR_FUSION_ONLY__
 #define ASCEND_IS_AIC_SCALAR constexpr(true)
 #define ASCEND_IS_AIV_SCALAR constexpr(true)
 #define ASCEND_IS_AIV_SHOULD_RETURN constexpr(false)
@@ -34,7 +35,7 @@
 static __aicore__ inline uint64_t GetAicBlockIdx()
 {
     if ASCEND_IS_AIV_SCALAR {
-#if (__NPU_ARCH__ == 5102)
+#if __CUBE_VECTOR_FUSION_ONLY__
         int64_t blockIdx = AscendC::GetBlockIdx();
 #elif defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         int64_t blockIdx = AscendC::GetBlockIdx() >> 1;

@@ -16,6 +16,8 @@
 #ifndef CONV3D_BP_INPUT_SUB_FUNC_STORE_L0C_DISPATCH_H
 #define CONV3D_BP_INPUT_SUB_FUNC_STORE_L0C_DISPATCH_H
 
+#include "../../../../inc/macro.h"
+
 namespace Convolution3DBackpropFunc {
 
 template <class Intf>
@@ -126,7 +128,7 @@ static __aicore__ inline void LoadL0c2Gm(Intf* self, const GlobalTensor<typename
     if constexpr (Intf::Config::dType::format == Convolution3DBackprop::CubeFormat::NCDHW) {
         LoadL0c2OutForNz2Dn<Intf>(self, output, useC1Buf);
     } else {
-#if (__NPU_ARCH__ != 5102)
+#if !__CUBE_VECTOR_FUSION_ONLY__
         LoadL0c2OutForNz2Nd<Intf>(self, output, useC1Buf);
 #endif
     }

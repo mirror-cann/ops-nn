@@ -21,6 +21,7 @@
 #include "conv_bp_input_sub_func_store_l0c.h"
 #include "conv_bp_input_sub_func_store_l0c_dispatch.h"
 #include "conv_bp_sub_func_load_gm_to_l1a.h"
+#include "../../../../inc/macro.h"
 
 using AscendC::DivCeil;
 using AscendC::Fixpipe;
@@ -45,7 +46,7 @@ static __aicore__ inline void InitMmadParams(Intf* self)
     self->ctx.mmad_.kDirectionAlign = 0;
     self->ctx.mmad_.cmatrixSource = 0;
     self->ctx.mmad_.cmatrixInitVal = 1;
-#if (__NPU_ARCH__ == 5102)
+#if __FIXED_POINT_ONLY_CUBE_TO_L0C__
     if constexpr (std::is_same<typename Intf::SrcAT, half>::value) {
         self->ctx.mmad_.fixShiftVal = self->ctx.tiling_->fixedShiftVal;
     }
@@ -203,7 +204,7 @@ __aicore__ inline void FullLoadBias(Intf* self)
     LocalTensor<typename Intf::L0cT> useBT = self->ctx.biasBTQue_.template AllocTensor<typename Intf::L0cT>();
     // BT Buffer 需要64字节对齐
     dataCopyParams.blockLen = DivCeil(blockBytes, 64) << 1;
-#if (__NPU_ARCH__ == 5102)
+#if __FIXED_POINT_ONLY_CUBE_TO_L0C__
     if constexpr (std::is_same<typename Intf::SrcAT, half>::value && std::is_same<typename Intf::SrcBT, half>::value) {
         dataCopyParams.fixShiftVal = SHIFT_VALUE_LEN - static_cast<uint8_t>(self->ctx.tiling_->fixedShiftVal);
     }

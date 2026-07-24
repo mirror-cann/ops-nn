@@ -18,6 +18,7 @@
 
 #include "../../../../inc/platform.h"
 #include "../../../conv3d_backprop_input_v2_arch35_tiling_key.h"
+#include "../../../../inc/macro.h"
 
 using AscendC::DivCeil;
 using AscendC::GlobalTensor;
@@ -117,7 +118,7 @@ static __aicore__ inline uint32_t DivDtypeByte(uint32_t a)
 template <class Intf, pipe_t srcPipe, pipe_t dstPipe>
 __aicore__ inline void CvCrossCoreSet(Intf* self, uint8_t flagId)
 {
-#if (__NPU_ARCH__ == 5102)
+#if __CUBE_VECTOR_FUSION_ONLY__
     AscendC::TQueSync<srcPipe, dstPipe> sync;
     sync.SetFlag(flagId);
 #else
@@ -128,7 +129,7 @@ __aicore__ inline void CvCrossCoreSet(Intf* self, uint8_t flagId)
 template <class Intf, pipe_t srcPipe, pipe_t dstPipe>
 __aicore__ inline void CvCrossCoreWait(Intf* self, uint8_t flagId)
 {
-#if (__NPU_ARCH__ == 5102)
+#if __CUBE_VECTOR_FUSION_ONLY__
     AscendC::TQueSync<srcPipe, dstPipe> sync;
     sync.WaitFlag(flagId);
 #else
@@ -448,7 +449,7 @@ static __aicore__ inline void SetQuantInt8(Intf* self, FixpipeParamsC310<layout>
 template <class Intf, CO2Layout layout = CO2Layout::COLUMN_MAJOR>
 static __aicore__ inline void SetFixPipeQuantVal(Intf* self, FixpipeParamsC310<layout>& fixPipeParams)
 {
-#if (__NPU_ARCH__ == 5102)
+#if __FIXED_POINT_ONLY_CUBE_TO_L0C__
     if constexpr (std::is_same<typename Intf::SrcAT, half>::value && std::is_same<typename Intf::SrcBT, half>::value) {
         fixPipeParams.fixShiftVal = SHIFT_VALUE_LEN - static_cast<uint8_t>(self->ctx.tiling_->fixedShiftVal);
     }
@@ -486,7 +487,7 @@ static __aicore__ inline void LoadL0c2OutForKernelSplitHW(Intf* self, const Loca
     fixPipeParams.params.srcNzC0Stride = 1;    // src M stride, loop0_src_stride (unit: 32B)
     fixPipeParams.nSize = self->ctx.baseUseN_; // N: cin
     fixPipeParams.reluEn = self->ctx.tiling_->enRelu;
-#if (__NPU_ARCH__ == 5102)
+#if __FIXED_POINT_ONLY_CUBE_TO_L0C__
     fixPipeParams.preReluMode = static_cast<ReluMode>(self->ctx.tiling_->enRelu);
 #endif
     // loop1_src_stride, c0_size, cin1
@@ -902,7 +903,7 @@ __aicore__ inline void DataCopyCastVecToOutput(Intf* self, const GlobalTensor<ty
         mte3Param.dstStride = self->ctx.diHiWi_ * sizeof(typename Intf::DstT) - mte3Param.blockLen;
     }
 
-#if (__NPU_ARCH__ != 5102)
+#if !__FIXED_POINT_ONLY_CUBE_TO_L0C__
     if constexpr (std::is_same<typename Intf::L0cT, int32_t>::value) {
         DataCopyPad<typename Intf::DstT, PaddingMode::Compact>(
             output[dstOffset], self->ctx.castVecTensor_.template ReinterpretCast<typename Intf::DstT>(), mte3Param);
@@ -1575,7 +1576,7 @@ __aicore__ inline void C04TransdataWeight(Intf* self, const uint32_t kIdx, uint3
 template <class Intf>
 __aicore__ inline void InitUbByteSize(Intf* self)
 {
-#if __CCE_AICORE__ == 310 || (__NPU_ARCH__ == 5102)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510) || __DAV_35_FAMILY__
     // 切K场景非fp32需要初始化AIV
     if (self->ctx.useUbAccumForSplitK_) {
         if (GetSubBlockIdx() != 0) {
@@ -1630,7 +1631,7 @@ __aicore__ inline void CrossCoreSetHead(Intf* self)
     if ASCEND_IS_AIC_SCALAR {
         if constexpr (Intf::conv3dConfig.groupMode == TPL_GROUP_MODE_ENLARGE) {
             CvCrossCoreSet<Intf, PIPE_MTE1, PIPE_V>(self, FLAG_MTE1_ID_2);
-#if (__NPU_ARCH__ == 5102)
+#if __CUBE_VECTOR_FUSION_ONLY__
             if (self->ctx.tiling_->bl1Pbuffer > 1) {
                 CvCrossCoreSet<Intf, PIPE_MTE1, PIPE_V>(self, FLAG_MTE1_ID_2);
             }
@@ -1648,7 +1649,7 @@ __aicore__ inline void CrossCoreWaitTail(Intf* self)
         if constexpr (Intf::conv3dConfig.groupMode == TPL_GROUP_MODE_ENLARGE) {
             if (GetSubBlockIdx() == 0) {
                 CvCrossCoreWait<Intf, PIPE_MTE1, PIPE_V>(self, FLAG_MTE1_ID_2);
-#if (__NPU_ARCH__ == 5102)
+#if __CUBE_VECTOR_FUSION_ONLY__
                 if (self->ctx.tiling_->bl1Pbuffer > 1) {
                     CvCrossCoreWait<Intf, PIPE_MTE1, PIPE_V>(self, FLAG_MTE1_ID_2);
                 }
