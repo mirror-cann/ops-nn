@@ -41,7 +41,7 @@ vector<int64_t> GetInputShapeVec(const gert::TilingContext* context, size_t para
     if (inputShapePtr == nullptr) {
         return inputShapeVec;
     }
-    auto storageShape = inputShapePtr->GetStorageShape();
+    auto storageShape = inputShapePtr->GetOriginShape();
 
     for (uint32_t i = 0; i < storageShape.GetDimNum(); i++) {
         inputShapeVec.push_back(storageShape.GetDim(i));
