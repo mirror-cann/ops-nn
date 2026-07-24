@@ -234,6 +234,7 @@
 - [aclnnGroupedDynamicBlockQuantV2](../../quant/grouped_dynamic_block_quant/docs/aclnnGroupedDynamicBlockQuantV2.md)
 - [aclnnGroupedDynamicMxQuant](../../quant/grouped_dynamic_mx_quant/docs/aclnnGroupedDynamicMxQuant.md)
 - [aclnnGroupedDynamicMxQuantV2](../../quant/grouped_dynamic_mx_quant/docs/aclnnGroupedDynamicMxQuantV2.md)
+- [aclnnGroupedDynamicMxQuantWithDualAxis](../../quant/grouped_dynamic_mx_quant_with_dual_axis/docs/aclnnGroupedDynamicMxQuantWithDualAxis.md)
 - [aclnnGroupedQuantMax](../../quant/grouped_quant_max/docs/aclnnGroupedQuantMax.md)
 - [aclnnHardshrink](../../activation/hard_shrink/docs/aclnnHardshrink.md)
 - [aclnnHardshrinkBackward](../../activation/hard_shrink_grad/docs/aclnnHardshrinkBackward.md)

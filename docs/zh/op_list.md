@@ -4170,6 +4170,16 @@
   </tr>
   <tr>
     <td>quant</td>
+    <td><a href="../../quant/grouped_dynamic_mx_quant_with_dual_axis/README.md">grouped_dynamic_mx_quant_with_dual_axis</a></td>
+    <td>√</td>
+    <td>√</td>
+    <td>√</td>
+    <td>√</td>
+    <td>AI Core</td>
+    <td>根据传入的分组索引，对输入数据同时沿最后一维和倒数第二维进行float8动态MX量化。</td>
+  </tr>
+  <tr>
+    <td>quant</td>
     <td><a href="../../quant/dynamic_block_mx_quant/README.md">dynamic_block_mx_quant</a></td>
     <td>✓</td>
     <td>✓</td>
