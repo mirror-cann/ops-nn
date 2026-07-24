@@ -111,7 +111,7 @@ bool BaseBlockCalculator::ValidateInput() const
             static_cast<uint64_t>(compileInfo_.aicNum), batchCoreCnt_),
         return false);
     uint64_t baseMAlignSize = GetBaseMAlignSize();
-    uint64_t baseNAlignSize = GetBaseNAlignSize();
+    uint64_t baseNAlignSize = GetBaseNAlignSize(qmmv3_tiling_const::L1_ALIGN_SIZE);
     uint64_t baseKAlignSize = GetBaseKAlignSize();
     OP_TILING_CHECK(
         baseMAlignSize == 0UL || baseNAlignSize == 0UL || baseKAlignSize == 0UL,
@@ -140,7 +140,7 @@ void BaseBlockCalculator::ComputeBaseBlockDefault()
     baseBlockRes_.baseM = ops::CeilAlign(std::min(inputParams_.mSize, qmmv3_tiling_const::BASIC_BLOCK_SIZE_256),
                                          GetBaseMAlignSize());
     baseBlockRes_.baseN = ops::CeilAlign(std::min(inputParams_.nSize, qmmv3_tiling_const::BASIC_BLOCK_SIZE_256),
-                                         GetBaseNAlignSize());
+                                         GetBaseNAlignSize(qmmv3_tiling_const::L1_ALIGN_SIZE));
 
     uint64_t baseKDefaultSize = GetShapeWithDataType(qmmv3_tiling_const::BASIC_BLOCK_SIZE_128, inputParams_.aDtype);
     baseBlockRes_.baseK = ops::CeilAlign(std::min(baseKDefaultSize, inputParams_.kSize), GetBaseKAlignSize());
@@ -169,7 +169,7 @@ void BaseBlockCalculator::ComputeBaseBlockMmadS8S4()
     baseBlockRes_.baseM = ops::CeilAlign(std::min(inputParams_.mSize, qmmv3_tiling_const::BASIC_BLOCK_SIZE_256),
                                          GetBaseMAlignSize());
     baseBlockRes_.baseN = ops::CeilAlign(std::min(inputParams_.nSize, qmmv3_tiling_const::BASIC_BLOCK_SIZE_256),
-                                         GetBaseNAlignSize());
+                                         GetBaseNAlignSize(qmmv3_tiling_const::L1_ALIGN_SIZE));
 
     uint64_t basicBlockSizeA = qmmv3_tiling_const::BASIC_BLOCK_SIZE_128;
     uint64_t basicBlockSizeB = qmmv3_tiling_const::BASIC_BLOCK_SIZE_128;
@@ -196,7 +196,7 @@ bool BaseBlockCalculator::InitStreamKBaseBlock()
     baseBlockRes_.baseM = ops::CeilAlign(std::min(inputParams_.mSize, qmmv3_tiling_const::BASIC_BLOCK_SIZE_256),
                                          GetBaseMAlignSize());
     baseBlockRes_.baseN = ops::CeilAlign(std::min(inputParams_.nSize, qmmv3_tiling_const::BASIC_BLOCK_SIZE_256),
-                                         GetBaseNAlignSize());
+                                         GetBaseNAlignSize(qmmv3_tiling_const::L1_ALIGN_SIZE));
     OP_TILING_CHECK(baseBlockRes_.baseM == 0UL || baseBlockRes_.baseN == 0UL,
                     CUBE_INNER_ERR_REPORT(inputParams_.opName, "Invalid StreamK base divisor: baseM(%lu), baseN(%lu).",
                                           baseBlockRes_.baseM, baseBlockRes_.baseN),
@@ -221,7 +221,7 @@ bool BaseBlockCalculator::UpdateSmallMnStreamKBase()
     baseBlockRes_.baseM = ops::CeilAlign(MathUtil::CeilDivision(inputParams_.mSize, baseBlockRes_.mCnt),
                                          GetBaseMAlignSize());
     baseBlockRes_.baseN = ops::CeilAlign(MathUtil::CeilDivision(inputParams_.nSize, baseBlockRes_.nCnt),
-                                         GetBaseNAlignSize());
+                                         GetBaseNAlignSize(qmmv3_tiling_const::L1_ALIGN_SIZE));
     baseBlockRes_.preSplitKBlockCnt = batchCoreCnt_ * baseBlockRes_.mCnt * baseBlockRes_.nCnt;
     OP_TILING_CHECK(
         baseBlockRes_.preSplitKBlockCnt == 0UL,
@@ -289,10 +289,10 @@ uint64_t BaseBlockCalculator::GetBaseMAlignSize() const
                                  qmmv3_tiling_const::CUBE_BLOCK;
 }
 
-uint64_t BaseBlockCalculator::GetBaseNAlignSize() const
+uint64_t BaseBlockCalculator::GetBaseNAlignSize(uint64_t innerAlignSize) const
 {
     return inputParams_.transB ? qmmv3_tiling_const::CUBE_BLOCK :
-                                 GetShapeWithDataType(qmmv3_tiling_const::L1_ALIGN_SIZE, inputParams_.bDtype);
+                                 GetShapeWithDataType(innerAlignSize, inputParams_.bDtype);
 }
 
 uint64_t BaseBlockCalculator::GetBaseKAlignSize() const
@@ -352,9 +352,7 @@ void BaseBlockCalculator::SearchLoadBalanceBaseBlock(uint64_t roundLimit, uint64
     uint64_t baseMAlignNum = inputParams_.transA ?
                                  GetShapeWithDataType(qmmv3_tiling_const::L2_ALIGN_SIZE, inputParams_.aDtype) :
                                  qmmv3_tiling_const::CUBE_BLOCK;
-    uint64_t baseNAlignNum = inputParams_.transB ?
-                                 qmmv3_tiling_const::CUBE_BLOCK :
-                                 GetShapeWithDataType(qmmv3_tiling_const::L2_ALIGN_SIZE, inputParams_.bDtype);
+    uint64_t baseNAlignNum = GetBaseNAlignSize(qmmv3_tiling_const::L2_ALIGN_SIZE);
     uint64_t searchBaseM = ops::CeilAlign(baseBlockRes_.baseM, baseMAlignNum);
     uint64_t searchBaseN = ops::CeilAlign(baseBlockRes_.baseN, baseNAlignNum);
     bool hasCandidate = false;
@@ -415,7 +413,7 @@ void BaseBlockCalculator::TryApplyLoadBalanceBase(uint64_t bestBaseM, uint64_t b
         baseBlockRes_.baseM = ops::CeilAlign(inputParams_.mSize, GetBaseMAlignSize());
     }
     if (baseBlockRes_.baseN > inputParams_.nSize) {
-        baseBlockRes_.baseN = ops::CeilAlign(inputParams_.nSize, GetBaseNAlignSize());
+        baseBlockRes_.baseN = ops::CeilAlign(inputParams_.nSize, GetBaseNAlignSize(qmmv3_tiling_const::L1_ALIGN_SIZE));
     }
 }
 
@@ -447,9 +445,7 @@ bool BaseBlockCalculator::AdjustBaseBlockDefault()
     uint64_t baseMAlignNum = inputParams_.transA ?
                                  GetShapeWithDataType(qmmv3_tiling_const::L2_ALIGN_SIZE, inputParams_.aDtype) :
                                  qmmv3_tiling_const::CUBE_BLOCK;
-    uint64_t baseNAlignNum = inputParams_.transB ?
-                                 qmmv3_tiling_const::CUBE_BLOCK :
-                                 GetShapeWithDataType(qmmv3_tiling_const::L2_ALIGN_SIZE, inputParams_.bDtype);
+    uint64_t baseNAlignNum = GetBaseNAlignSize(qmmv3_tiling_const::L2_ALIGN_SIZE);
     uint64_t baseKAlignNum = (inputParams_.transA && !inputParams_.transB) ?
                                  GetShapeWithDataType(qmmv3_tiling_const::BASIC_BLOCK_SIZE_32, inputParams_.aDtype) :
                                  GetShapeWithDataType(qmmv3_tiling_const::L2_ALIGN_SIZE, inputParams_.aDtype);
@@ -552,6 +548,7 @@ void BaseBlockCalculator::TrySwapBaseMNForMxFalseTrue(uint64_t& baseM, uint64_t&
     if (swapUsedCore >= curUsedCore && (swapCoreShapeBetter || swapBaseNIsFriendly)) {
         baseM = swapBaseM;
         baseN = swapBaseN;
+        baseN = ops::CeilAlign(baseN, GetBaseNAlignSize(qmmv3_tiling_const::L2_ALIGN_SIZE));
     }
 }
 
@@ -579,9 +576,7 @@ bool BaseBlockCalculator::AdjustBaseBlockPertile(uint64_t coreNumMN)
     uint64_t baseMAlignNum = inputParams_.transA ?
                                  GetShapeWithDataType(qmmv3_tiling_const::L2_ALIGN_SIZE, inputParams_.aDtype) :
                                  qmmv3_tiling_const::CUBE_BLOCK;
-    uint64_t baseNAlignNum = !inputParams_.transB ?
-                                 GetShapeWithDataType(qmmv3_tiling_const::L2_ALIGN_SIZE, inputParams_.bDtype) :
-                                 qmmv3_tiling_const::CUBE_BLOCK;
+    uint64_t baseNAlignNum = GetBaseNAlignSize(qmmv3_tiling_const::L2_ALIGN_SIZE);
     uint64_t adjustBaseM = baseBlockRes_.baseM;
     uint64_t adjustBaseN = baseBlockRes_.baseN;
     uint64_t adjustMCore = MathUtil::CeilDivision(inputParams_.mSize, adjustBaseM);

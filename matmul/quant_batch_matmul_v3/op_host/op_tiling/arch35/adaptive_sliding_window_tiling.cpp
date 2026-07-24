@@ -429,6 +429,12 @@ bool AdaptiveSlidingWindowTiling::IsInValidWeighNzTailSplit(uint64_t splitCnt, b
     return tailN % GetShapeWithDataType(qmmv3_tiling_const::L1_ALIGN_SIZE, inputParams_.bDtype) != 0UL;
 }
 
+uint64_t AdaptiveSlidingWindowTiling::GetBaseNAlignSize(uint64_t innerAlignSize) const
+{
+    return inputParams_.transB ? qmmv3_tiling_const::CUBE_BLOCK :
+                                 GetShapeWithDataType(innerAlignSize, inputParams_.bDtype);
+}
+
 uint64_t AdaptiveSlidingWindowTiling::GetTailBasicBlockSplitMax(bool isMSplit, uint64_t tileMax,
                                                                 uint64_t splitSize) const
 {
@@ -442,9 +448,7 @@ uint64_t AdaptiveSlidingWindowTiling::GetTailBasicBlockSplitMax(bool isMSplit, u
     const uint64_t splitAlignNum = isMSplit ? (inputParams_.transA ?
                                                    GetShapeWithDataType(baseMAlignSize, inputParams_.aDtype) :
                                                    qmmv3_tiling_const::CUBE_BLOCK) :
-                                              (!inputParams_.transB ?
-                                                   GetShapeWithDataType(baseNAlignSize, inputParams_.bDtype) :
-                                                   qmmv3_tiling_const::CUBE_BLOCK);
+                                              GetBaseNAlignSize(baseNAlignSize);
     return std::min(tileMax, MathUtil::CeilDivision(splitSize, splitAlignNum));
 }
 

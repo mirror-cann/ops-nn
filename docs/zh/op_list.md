@@ -2769,6 +2769,16 @@
   </tr>
   <tr>
     <td>matmul</td>
+    <td><a href="../../matmul/quant_matmul_activation_quant/README.md">quant_matmul_activation_quant</a></td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>AI Core</td>
+    <td>完成量化的矩阵乘计算后计算Gelu激活再执行动态MX量化。</td>
+  </tr>
+  <tr>
+    <td>matmul</td>
     <td><a href="../../matmul/quant_matmul_reduce_sum/README.md">quant_matmul_reduce_sum</a></td>
     <td>✓</td>
     <td>✓</td>

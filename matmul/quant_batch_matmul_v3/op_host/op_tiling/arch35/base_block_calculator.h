@@ -43,6 +43,14 @@ public:
     bool Compute(BaseBlockMode mode);
     const BaseBlockRes& GetOutput() const;
 
+protected:
+    // QBMMActivationQuant需要修改为32对齐
+    virtual uint64_t GetBaseNAlignSize(uint64_t innerAlignSize) const;
+    const QuantBatchMatmulInfo& inputParams_;
+    const QuantBatchMatmulV3CompileInfo& compileInfo_;
+    uint64_t batchCoreCnt_ = 1UL;
+    BaseBlockRes baseBlockRes_;
+
 private:
     bool ValidateInput() const;
     bool ValidateBaseBlock() const;
@@ -55,7 +63,6 @@ private:
     void UpdateTailStreamKBase();
     bool FinalizeStreamKBaseK();
     uint64_t GetBaseMAlignSize() const;
-    uint64_t GetBaseNAlignSize() const;
     uint64_t GetBaseKAlignSize() const;
     bool OptimizeBaseBlockForCoreUtilization(BaseBlockMode mode);
     void OptimizeBaseBlockForLoadBalance();
@@ -75,11 +82,6 @@ private:
     bool CalculateOptimalSplit(uint64_t& baseM, uint64_t& baseN, uint64_t baseMAlignNum, uint64_t baseNAlignNum,
                                uint64_t baseKAlignNum) const;
     bool IsMxBackwardTrans() const;
-
-    const QuantBatchMatmulInfo& inputParams_;
-    const QuantBatchMatmulV3CompileInfo& compileInfo_;
-    uint64_t batchCoreCnt_ = 1UL;
-    BaseBlockRes baseBlockRes_;
 };
 
 } // namespace optiling

@@ -426,9 +426,7 @@ void AdaptiveSlidingWindowMXBasicAPITiling::NormalizeSingleRoundTailSplitBasicBl
     const uint64_t baseMAlignSize = inputParams_.transA ?
                                         GetShapeWithDataType(qmmv3_tiling_const::L1_ALIGN_SIZE, inputParams_.aDtype) :
                                         qmmv3_tiling_const::CUBE_BLOCK;
-    const uint64_t baseNAlignSize = inputParams_.transB ?
-                                        qmmv3_tiling_const::CUBE_BLOCK :
-                                        GetShapeWithDataType(qmmv3_tiling_const::L1_ALIGN_SIZE, inputParams_.bDtype);
+    const uint64_t baseNAlignSize = GetBaseNAlignSize(qmmv3_tiling_const::L1_ALIGN_SIZE);
     const uint64_t newBaseM = GetSingleRoundTailSplitBase(inputParams_.mSize, adaptiveWin_.baseM,
                                                           adaptiveWin_.mTailTile, baseMAlignSize);
     const uint64_t newBaseN = GetSingleRoundTailSplitBase(inputParams_.nSize, adaptiveWin_.baseN,

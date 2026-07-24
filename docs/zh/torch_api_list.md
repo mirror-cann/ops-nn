@@ -27,3 +27,4 @@
 |[swiglu_group](../../torch_extension/cann_ops_nn/ops/activation/swiglu_group/swiglu_group.md)|SwiGLU分组激活算子，对输入张量按最后一维拆分为两部分，分别进行clamp和sigmoid操作后相乘，支持可选的权重和分组索引。|-|-|
 |[swiglu_group_quant](../../torch_extension/cann_ops_nn/ops/activation/swiglu_group_quant/swiglu_group_quant.md)|融合SwiGLU分组激活与量化的算子，在SwiGLU计算基础上支持FP8/MXFP4等多种量化模式输出。|-|-|
 |[rms_norm_dynamic_quant](../../torch_extension/cann_ops_nn/ops/norm/rms_norm_dynamic_quant/rms_norm_dynamic_quant.md)|融合RMS Normalization与INT8动态量化，输出量化后的张量及缩放因子。|-|-|
+|[quant_matmul_activation_quant](../../matmul/quant_matmul_activation_quant/docs/torchapi_quant_matmul_activation_quant.md)| 融合量化的矩阵乘、激活以及动态量化计算，weight仅支持NZ格式。 |-|默认支持确定性计算|
