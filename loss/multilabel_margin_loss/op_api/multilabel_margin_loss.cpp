@@ -27,7 +27,12 @@ const std::tuple<aclTensor*, aclTensor*> MultilabelMarginLoss(const aclTensor* s
     // 固定写法，创建OpExecutor
     auto out = executor->AllocTensor(shape, self->GetDataType(), self->GetStorageFormat());
     CHECK_RET(out != nullptr, (std::tuple<aclTensor*, aclTensor*>(nullptr, nullptr)));
-    auto isTarget = executor->AllocTensor(target->GetViewShape(), DataType::DT_INT32, target->GetStorageFormat());
+    // is_target dtype 按 soc 隔离(regbase 相对 910b 的差异, 不污染 910b/910_93):
+    //   regbase(ascend950/DAV_3510): 跟随 self dtype(torch 契约 is_target==self), kernel 直接产出, 免 int32->float
+    //   Cast; 非 regbase(ascend910b/910_93): 保持原始 INT32(其 opp 完整, 有内置 Cast, 不需扩展)。
+    bool isRegBase = (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510);
+    op::DataType isTgtDtype = isRegBase ? self->GetDataType() : op::DataType::DT_INT32;
+    auto isTarget = executor->AllocTensor(target->GetViewShape(), isTgtDtype, self->GetStorageFormat());
     CHECK_RET(isTarget != nullptr, (std::tuple<aclTensor*, aclTensor*>(nullptr, nullptr)));
     auto ret = ADD_TO_LAUNCHER_LIST_AICORE(MultilabelMarginLoss, OP_INPUT(self, target), OP_ATTR(reduction),
                                            OP_OUTPUT(out, isTarget));

@@ -6,7 +6,7 @@
 
 |产品             |  是否支持  |
 |:-------------------------|:----------:|
-|  <term>Ascend 950PR/Ascend 950DT</term>   |     x    |
+|  <term>Ascend 950PR/Ascend 950DT</term>   |     √    |
 |  <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>   |     √    |
 |  <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>     |     √    |
 |  <term>Atlas 200I/500 A2 推理产品</term>    |     ×    |
@@ -15,7 +15,7 @@
 
 ## 功能说明
 
-- 接口功能：计算负对数似然损失值。
+- 接口功能：计算多标签间隔损失（multilabel margin loss）。
 - 计算公式：
 self为输入，shape为(N,C)或者(C)，其中N表示batch size，C表示类别数。target表示真实标签，shape为(N，C)或者(C)，其中每个元素的取值范围是[-1, C - 1]，为确保与输入相同的形状，用-1填充，即首个-1之前的标签代表样本所属真实标签yTrue。如y=[0,3,-1,1],真实标签yTrue为[0,3]。对于每个样本计算的公式如下:
 
@@ -133,7 +133,7 @@ aclnnStatus aclnnMultilabelMarginLoss(
       <td class="tg-0lax">输出</td>
       <td class="tg-0lax">输出的loss，公式中的ℓ(x,y)。</td>
       <td class="tg-0lax">shape为(N)或者()</td>
-      <td class="tg-0lax">与self、isTarget保持一致</td>
+      <td class="tg-0lax">与self保持一致</td>
       <td class="tg-0lax">ND</td>
       <td class="tg-0lax">0、1</td>
       <td class="tg-0lax"></td>
@@ -141,9 +141,9 @@ aclnnStatus aclnnMultilabelMarginLoss(
     <tr>
       <td class="tg-0pky">isTarget（aclTensor*）</td>
       <td class="tg-0pky">输出</td>
-      <td class="tg-0pky">公式中的输出`istarget`</td>
+      <td class="tg-0pky">公式中的输出`istarget`（target派生的0/1掩码）</td>
       <td class="tg-0pky">shape为(N，C)或者(C)</td>
-      <td class="tg-0pky">与self、out保持一致</td>
+      <td class="tg-0pky">与self保持一致（FLOAT、FLOAT16、BFLOAT16）</td>
       <td class="tg-0pky">ND</td>
       <td class="tg-0pky">1、2</td>
       <td class="tg-0pky">√</td>
@@ -196,10 +196,10 @@ aclnnStatus aclnnMultilabelMarginLoss(
     <tr>
       <td class="tg-0pky" rowspan="5">ACLNN_ERR_PARAM_INVALID</td>
       <td class="tg-0pky" rowspan="5">161002</td>
-      <td class="tg-0pky">self、out、isTarget的数据类型不在支持的范围之内。</td>
+      <td class="tg-0pky">self的数据类型不在支持的范围之内（仅支持FLOAT/FLOAT16/BFLOAT16）。</td>
     </tr>
     <tr>
-      <td class="tg-0pky">self、out、isTarget的数据类型不一致。</td>
+      <td class="tg-0pky">out或isTarget的数据类型与self不一致（aclnn路径校验out==self、isTarget==self，三者须同为同一浮点类型）。</td>
     </tr>
     <tr>
       <td class="tg-0pky">target的数据类型不在支持的范围之内。</td>
@@ -259,7 +259,9 @@ aclnnStatus aclnnMultilabelMarginLoss(
 ## 约束说明
 
 - 确定性计算：
-    - aclnnMultilabelMarginLoss默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
+    - aclnnMultilabelMarginLoss默认非确定性实现。
+- isTarget数据类型跟随self（0/1掩码，torch契约is_target==self）；self、out、isTarget三者须一致（FLOAT/FLOAT16/BFLOAT16）。
+- 空tensor：仅支持N(batch)轴为空，即 `[0,C]`（N=0、C≥1），空进空出；类别维C=0（`[N,0]`/`[0,0]`/1D `[0]`）为非法输入，返回ACLNN_ERR_PARAM_INVALID(161002)。
 
 ## 调用示例
 

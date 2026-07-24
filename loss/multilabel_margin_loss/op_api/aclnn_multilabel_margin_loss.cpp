@@ -69,6 +69,8 @@ static bool CheckDtypeValid(const aclTensor* self, const aclTensor* target, cons
     OP_CHECK_DTYPE_NOT_SUPPORT(self, supportList, return false);
     OP_CHECK_DTYPE_NOT_SUPPORT(target, TARGET_DTYPE_SUPPORT_LIST, return false);
     OP_CHECK_DTYPE_NOT_MATCH(out, self->GetDataType(), return false);
+    // is_target 跟随 self dtype(对齐 torch 契约 is_target==self)——与基线一致,A2/A5 同,不 soc 分支。
+    // (GE 图路径 is_target=int32 由 IR 决定;kernel 输出 dtype 的 int32/self 差异在 l0 层按 soc 处理。)
     OP_CHECK_DTYPE_NOT_MATCH(isTarget, self->GetDataType(), return false);
     return true;
 }
@@ -186,11 +188,9 @@ aclnnStatus aclnnMultilabelMarginLossGetWorkspaceSize(const aclTensor* self, con
     auto selfContiguous = l0op::Contiguous(self, uniqueExecutor.get());
     CHECK_COND(selfContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR, "contiguous self failed!");
 
+    // 不预 cast self:kernel 模板化直收 fp32/fp16/bf16 x(内部 fp32 累加),使 (x,is_target) combo 同 dtype、
+    // is_target 直接产 self dtype,免 int32/fp32->self 的 Cast 依赖。
     auto selfCasted = selfContiguous;
-    if (self->GetDataType() == op::DataType::DT_BF16) {
-        selfCasted = l0op::Cast(selfCasted, DataType::DT_FLOAT, uniqueExecutor.get());
-        CHECK_COND(selfCasted != nullptr, ACLNN_ERR_INNER_NULLPTR, "cast self failed!");
-    }
 
     int64_t squeezeDim = 0;
     auto selfReshape = self->GetViewShape().GetDimNum() == 0 ?
@@ -221,12 +221,17 @@ aclnnStatus aclnnMultilabelMarginLossGetWorkspaceSize(const aclTensor* self, con
     auto castOut = l0op::Cast(outLoss, out->GetDataType(), uniqueExecutor.get());
     CHECK_COND(castOut != nullptr, ACLNN_ERR_INNER_NULLPTR, "cast out failed!");
 
-    auto castIsTarget = l0op::Cast(outIsTarget, out->GetDataType(), uniqueExecutor.get());
-    CHECK_COND(castIsTarget != nullptr, ACLNN_ERR_INNER_NULLPTR, "cast isTarget failed!");
-
     auto viewCopyResult = l0op::ViewCopy(castOut, out, uniqueExecutor.get());
     CHECK_COND(viewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR, "viewcopy out failed!");
-    auto viewCopyIsTarget = l0op::ViewCopy(castIsTarget, isTarget, uniqueExecutor.get());
+    // is_target 输出跟随 self dtype(对齐 torch is_target==self)。按 soc 门控:
+    //   A5(950/DAV_3510): kernel 直产 self,直接 ViewCopy(绕开开发机缺失的 int32->float Cast);
+    //   非 A5(910b/910_93): kernel 产 int32,走原始 Cast int32->self(A2 基线,910b 有内置 Cast)。
+    const aclTensor* isTargetOut = outIsTarget;
+    if (GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510) {
+        isTargetOut = l0op::Cast(outIsTarget, isTarget->GetDataType(), uniqueExecutor.get());
+        CHECK_COND(isTargetOut != nullptr, ACLNN_ERR_INNER_NULLPTR, "cast isTarget failed!");
+    }
+    auto viewCopyIsTarget = l0op::ViewCopy(isTargetOut, isTarget, uniqueExecutor.get());
     CHECK_COND(viewCopyIsTarget != nullptr, ACLNN_ERR_INNER_NULLPTR, "viewcopy isTarget failed!");
 
     // 固定写法，获取计算过程中需要使用的workspace大小

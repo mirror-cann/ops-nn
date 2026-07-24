@@ -14,10 +14,24 @@
 #include <cstring>
 #include "register/op_impl_registry.h"
 #include "log/log.h"
+#include "platform/platform_info.h"
 
 using namespace ge;
 
 namespace ops {
+
+static constexpr int64_t UNKNOWN_RANK_DIM_VALUE = -2LL;
+
+static inline bool IsUnknownRank(const gert::Shape* shape)
+{
+    return shape->GetDimNum() == 1 && shape->GetDim(0) == UNKNOWN_RANK_DIM_VALUE;
+}
+
+static inline void SetUnknownRank(gert::Shape* shape)
+{
+    shape->SetDimNum(0);
+    shape->AppendDim(UNKNOWN_RANK_DIM_VALUE);
+}
 
 static ge::graphStatus InferShapeMultilabelMarginLoss(gert::InferShapeContext* context)
 {
@@ -28,6 +42,19 @@ static ge::graphStatus InferShapeMultilabelMarginLoss(gert::InferShapeContext* c
     gert::Shape* is_target_shape = context->GetOutputShape(1);
     OP_CHECK_NULL_WITH_CONTEXT(context, is_target_shape);
 
+    // -2 UNKNOWN_RANK 传播:A2(ascend910b/ascend910_93)基线 infershape 无此处理,走 else=基线原样(不动 A2);
+    // A5(regbase/ascend950)才补动态 rank 守护。soc 门控的 else 分支即 A2 基线行为,A2 逻辑等效不变。
+    fe::PlatformInfo platform_info;
+    fe::OptionalInfo optional_info;
+    bool isRegBase = (fe::PlatformInfoManager::Instance().GetPlatformInfoWithOutSocVersion(
+                          platform_info, optional_info) == ge::GRAPH_SUCCESS &&
+                      platform_info.str_info.short_soc_version == "Ascend950");
+    if (isRegBase && IsUnknownRank(x1_shape)) {
+        SetUnknownRank(y_shape);
+        SetUnknownRank(is_target_shape);
+        return GRAPH_SUCCESS;
+    }
+
     auto attrs = context->GetAttrs();
     OP_CHECK_NULL_WITH_CONTEXT(context, attrs);
     // reduction is a String attr ("none"/"mean"/"sum"); consistent with tiling and the aclnn launcher.
@@ -35,7 +62,7 @@ static ge::graphStatus InferShapeMultilabelMarginLoss(gert::InferShapeContext* c
     OP_CHECK_NULL_WITH_CONTEXT(context, reductionStr);
 
     // reduction == none: per-sample loss, output 1D (N) for a 2D (N, C) input,
-    // scalar for a 1D (C) input. reduction == mean/sum: scalar.
+    // scalar for a 1D (C) input. reduction == mean/sum: scalar. Dynamic dims (-1) propagate via SetDim.
     if (strcmp(reductionStr, "none") == 0 && x1_shape->GetDimNum() >= 2) {
         y_shape->SetDimNum(1);
         y_shape->SetDim(0, x1_shape->GetDim(0));

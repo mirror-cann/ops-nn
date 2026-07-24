@@ -16,7 +16,7 @@
 #include "array_ops.h"
 #include "tests/ut/common/ut_op_util.h"
 #include "tests/ut/common/any_value.h"
-#include "norm/group_norm_silu_quant/op_host/group_norm_silu_quant_tiling.h"
+#include "norm/group_norm_silu_quant/op_host/arch22/group_norm_silu_quant_tiling.h"
 #include "kernel_run_context_facker.h"
 #include "test_cube_util.h"
 

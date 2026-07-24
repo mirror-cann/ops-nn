@@ -1929,6 +1929,16 @@
   </tr>
   <tr>
     <td>index</td>
+    <td><a href="../../index/non_zero_with_value/README.md">non_zero_with_value</a></td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>AI Core</td>
+    <td>找出2D输入x中的非零元素，静态max-size一次返回非零元素的值value、坐标index（坐标主序[2, numel]，前半段行号/后半段列号）和个数count，有效长度由count给出。</td>
+  </tr>
+  <tr>
+    <td>index</td>
     <td><a href="../../index/non_zero_with_value_shape/README.md">non_zero_with_value_shape</a></td>
     <td>✓</td>
     <td>✓</td>
@@ -2465,7 +2475,7 @@
     <td>✓</td>
     <td>✗</td>
     <td>AI Core</td>
-    <td>该算子暂无Ascend C代码实现，欢迎开发者补充贡献，贡献方式参考<a href="../../CONTRIBUTING.md">贡献指南</a>。</td>
+    <td>计算多标签分类的间隔损失值。</td>
   </tr>
   <tr>
     <td>loss</td>
