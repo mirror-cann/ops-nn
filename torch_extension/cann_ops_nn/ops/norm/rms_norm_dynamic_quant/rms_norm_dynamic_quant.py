@@ -79,7 +79,7 @@ class RmsNormDynamicQuantOpBuilder(OpBuilder):
 
 
 rms_norm_dynamic_quant_builder = RmsNormDynamicQuantOpBuilder()
-op_module_norm = rms_norm_dynamic_quant_builder.load()
+rms_norm_dynamic_quant_builder._ensure_initialized()
 
 
 @impl(get_as_library(), rms_norm_dynamic_quant_builder.name, "PrivateUse1")
@@ -94,6 +94,7 @@ def rms_norm_dynamic_quant(
     """
     NPU 上的 RmsNormDynamicQuant — 融合 RMS Normalization 与 INT8 动态量化
     """
+    op_module_norm = rms_norm_dynamic_quant_builder.load()
     return op_module_norm.rms_norm_dynamic_quant(
         x, gamma, smooth_scales, beta, epsilon, dst_type
     )

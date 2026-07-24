@@ -1,15 +1,25 @@
-# cann_ops_nn.rms_norm_dynamic_quant
+# rms_norm_dynamic_quant
 
 ## 产品支持情况
 
+<!-- npu="950" id1 -->
 - <term>Ascend 950PR/Ascend 950DT</term>：不支持
+<!-- end id1 -->
+<!-- npu="A3" id2 -->
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：支持
+<!-- end id2 -->
+<!-- npu="910b" id3 -->
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持
+<!-- end id3 -->
+<!-- npu="310b" id4 -->
 - <term>Atlas 200I/500 A2 推理产品</term>：不支持
+<!-- end id4 -->
+<!-- npu="310p" id5 -->
 - <term>Atlas 推理系列产品</term>：不支持
+<!-- end id5 -->
+<!-- npu="910" id6 -->
 - <term>Atlas 训练系列产品</term>：不支持
-- <term>Kirin X90 处理器系列产品</term>：不支持
-- <term>Kirin 9030 处理器系列产品</term>：不支持
+<!-- end id6 -->
 
 ## 功能说明
 
@@ -51,8 +61,8 @@
 
 ## 函数原型
 
-```
-torch.ops.cann_ops_nn.rms_norm_dynamic_quant(x, gamma, smooth_scales=None, beta=None, *, epsilon=1e-6, dst_type=2)
+```python
+cann_ops_nn.rms_norm_dynamic_quant(x, gamma, smooth_scales=None, beta=None, *, epsilon=1e-6, dst_type=2)
     -> (Tensor y, Tensor scale)
 ```
 
@@ -81,8 +91,8 @@ torch.ops.cann_ops_nn.rms_norm_dynamic_quant(x, gamma, smooth_scales=None, beta=
         <td>x</td>
         <td>Tensor</td>
         <td>必选</td>
-        <td>标准化过程中的源数据张量，公式中的 x。最后一维须 ≤ 8192。</td>
-        <td>FLOAT16、BFLOAT16</td>
+        <td>标准化过程中的源数据张量，公式中的 x。</td>
+        <td>float16、bfloat16</td>
         <td>(..., D)</td>
     </tr>
     <tr>
@@ -90,7 +100,7 @@ torch.ops.cann_ops_nn.rms_norm_dynamic_quant(x, gamma, smooth_scales=None, beta=
         <td>Tensor</td>
         <td>必选</td>
         <td>标准化过程中的权重张量，公式中的 gamma。shape 需与 x 最后一维一致。</td>
-        <td>FLOAT16、BFLOAT16</td>
+        <td>float16、bfloat16</td>
         <td>(D,)</td>
     </tr>
     <tr>
@@ -98,7 +108,7 @@ torch.ops.cann_ops_nn.rms_norm_dynamic_quant(x, gamma, smooth_scales=None, beta=
         <td>Tensor</td>
         <td>可选</td>
         <td>量化过程中使用的 smoothScale 张量，公式中的 smooth_scales。shape 和 dtype 需与 gamma 一致。</td>
-        <td>FLOAT16、BFLOAT16</td>
+        <td>float16、bfloat16</td>
         <td>(D,)</td>
     </tr>
     <tr>
@@ -106,7 +116,7 @@ torch.ops.cann_ops_nn.rms_norm_dynamic_quant(x, gamma, smooth_scales=None, beta=
         <td>Tensor</td>
         <td>可选</td>
         <td>标准化过程中的偏置项，公式中的 beta。shape 和 dtype 需与 gamma 一致。</td>
-        <td>FLOAT16、BFLOAT16</td>
+        <td>float16、bfloat16</td>
         <td>(D,)</td>
     </tr>
     <tr>
@@ -114,15 +124,15 @@ torch.ops.cann_ops_nn.rms_norm_dynamic_quant(x, gamma, smooth_scales=None, beta=
         <td>float</td>
         <td>可选</td>
         <td>用于防止除 0 错误，公式中的 epsilon，必须大于零。默认值 1e-6。</td>
-        <td>FLOAT32</td>
+        <td>float32</td>
         <td>-</td>
     </tr>
     <tr>
         <td>dst_type</td>
         <td>int</td>
         <td>可选</td>
-        <td>输出 y 的数据类型枚举值。当前仅支持 INT8 量化，默认值 2。</td>
-        <td>INT</td>
+        <td>输出 y 的数据类型枚举值。当前仅支持 iNT8 量化，默认值 2。</td>
+        <td>int</td>
         <td>-</td>
     </tr>
 </tbody>
@@ -140,8 +150,8 @@ torch.ops.cann_ops_nn.rms_norm_dynamic_quant(x, gamma, smooth_scales=None, beta=
 </colgroup>
 <thead>
 <tr>
-    <th>输出名</th>
-    <th>输出类型</th>
+    <th>参数名</th>
+    <th>参数类型</th>
     <th>可选/必选</th>
     <th>描述</th>
     <th>数据类型</th>
@@ -153,16 +163,16 @@ torch.ops.cann_ops_nn.rms_norm_dynamic_quant(x, gamma, smooth_scales=None, beta=
         <td>y</td>
         <td>Tensor</td>
         <td>必选</td>
-        <td>量化输出，公式中的 yOut，shape 与 x 一致</td>
-        <td>INT8</td>
+        <td>量化输出，公式中的 yOut，shape 与 x 一致。</td>
+        <td>int8</td>
         <td>(..., D)</td>
     </tr>
     <tr>
         <td>scale</td>
         <td>Tensor</td>
         <td>必选</td>
-        <td>量化 scale 因子，公式中的 scaleOut，shape 为 x 去掉最后一维</td>
-        <td>FLOAT32</td>
+        <td>量化 scale 因子，公式中的 scaleOut，shape 为 x 去掉最后一维。</td>
+        <td>float32</td>
         <td>(...,)</td>
     </tr>
 </tbody>
@@ -170,8 +180,10 @@ torch.ops.cann_ops_nn.rms_norm_dynamic_quant(x, gamma, smooth_scales=None, beta=
 
 ## 约束说明
 
-- 输入 x 的最后一维必须小于等于 8192。
-- 输入 x 的每一行不能全为零（否则归一化后仍全为零，量化 scale 为 0 导致除法异常）。
+- 该接口支持训练、推理场景下使用。
+- 该接口支持单算子模式和TorchAir图模式调用。
+- 输入`x`的最后一维必须小于等于 8192，否则可能会出现精度问题。
+- `x`不支持全0输入。
 
 ## 确定性计算
 
@@ -189,19 +201,17 @@ torch.ops.cann_ops_nn.rms_norm_dynamic_quant(x, gamma, smooth_scales=None, beta=
     rows, hidden = 16, 64
     x = torch.randn(rows, hidden, dtype=torch.float16).npu()
     gamma = torch.ones(hidden, dtype=torch.float16).npu()
+    # 不带可选输入的
+    # y, scale = cann_ops_nn.rms_norm_dynamic_quant(x, gamma)
 
-    y, scale = torch.ops.cann_ops_nn.rms_norm_dynamic_quant(x, gamma)
-    print("y: ", y)
-    print("scale: ", scale)
-    ```
-
-    带可选输入：
-
-    ```python
     smooth = torch.ones(hidden, dtype=torch.float16).npu()
     beta = torch.zeros(hidden, dtype=torch.float16).npu()
-    y, scale = torch.ops.cann_ops_nn.rms_norm_dynamic_quant(
+    # 带可选输入的
+    y, scale = cann_ops_nn.rms_norm_dynamic_quant(
         x, gamma, smooth_scales=smooth, beta=beta, epsilon=1e-5)
+
+    print("y: ", y)
+    print("scale: ", scale)
     ```
 
 - 图模式（torchair）调用
@@ -211,7 +221,7 @@ torch.ops.cann_ops_nn.rms_norm_dynamic_quant(x, gamma, smooth_scales=None, beta=
 
     @torch.compile(backend="npu")
     def func(x, gamma):
-        return torch.ops.cann_ops_nn.rms_norm_dynamic_quant(x, gamma)
+        return cann_ops_nn.rms_norm_dynamic_quant(x, gamma)
 
     x = torch.randn(4, 64, dtype=torch.float16).npu()
     gamma = torch.ones(64, dtype=torch.float16).npu()

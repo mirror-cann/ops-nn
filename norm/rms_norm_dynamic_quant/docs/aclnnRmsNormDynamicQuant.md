@@ -112,7 +112,7 @@ aclnnStatus aclnnRmsNormDynamicQuant(
       </tr></thead>
     <tbody>
     <tr>
-      <td>x（aclTensor*）</td>
+      <td>x（const aclTensor*）</td>
       <td>输入</td>
       <td>表示标准化过程中的源数据张量。对应公式中的x。</td>
       <td>不支持空Tensor。</td>
@@ -122,7 +122,7 @@ aclnnStatus aclnnRmsNormDynamicQuant(
       <td>√</td>
     </tr>
     <tr>
-      <td>gamma（aclTensor*）</td>
+      <td>gamma（const aclTensor*）</td>
       <td>输入</td>
       <td>表示标准化过程中的权重张量。对应公式中的gamma。</td>
       <td><ul><li>不支持空Tensor。</li><li>数据类型需要与x保持一致。</li><li>shape需要与x最后一维一致。</li></ul></td>
@@ -132,7 +132,7 @@ aclnnStatus aclnnRmsNormDynamicQuant(
       <td>√</td>
     </tr>
     <tr>
-      <td>smoothScalesOptional（aclTensor*）</td>
+      <td>smoothScalesOptional（const aclTensor*）</td>
       <td>输入</td>
       <td>表示量化过程中使用的smoothScale张量。对应公式中的smoothScalesOptional。</td>
       <td><ul><li>不支持空Tensor。</li><li>可选参数，支持传入空指针。</li><li>shape和数据类型需要与gamma保持一致。</li></ul></td>
@@ -142,7 +142,7 @@ aclnnStatus aclnnRmsNormDynamicQuant(
       <td>√</td>
     </tr>
     <tr>
-      <td>betaOptional（aclTensor*）</td>
+      <td>betaOptional（const aclTensor*）</td>
       <td>输入</td>
       <td>表示标准化过程中的偏置项。对应公式中的beta。</td>
       <td><ul><li>不支持空Tensor。</li><li>可选参数，支持传入空指针。</li><li>shape和数据类型需要与gamma保持一致。</li></ul></td>
@@ -227,7 +227,7 @@ aclnnStatus aclnnRmsNormDynamicQuant(
   </colgroup>
   <thead>
     <tr>
-      <th>返回码</th>
+      <th>返回值</th>
       <th>错误码</th>
       <th>描述</th>
     </tr>
@@ -236,17 +236,12 @@ aclnnStatus aclnnRmsNormDynamicQuant(
     <tr>
       <td>ACLNN_ERR_PARAM_NULLPTR</td>
       <td>161001</td>
-      <td>如果传入参数是必选输入，输出或者必选属性，且是空指针，则返回161001。</td>
-    </tr>
-    <tr>
-      <td>ACLNN_ERR_PARAM_INVALID</td>
-      <td>161002</td>
-      <td>输入或输出的数据类型不在支持的范围之内。</td>
+      <td>x, gamma, yOut, scaleOut存在空指针。</td>
     </tr>
     <tr>
       <td>ACLNN_ERR_INNER_TILING_ERROR</td>
       <td>561002</td>
-      <td>参数不满足参数说明中的要求。</td>
+      <td>调用tiling时发生异常。</td>
     </tr>
   </tbody></table>
 
@@ -295,27 +290,11 @@ aclnnStatus aclnnRmsNormDynamicQuant(
 
 ## 约束说明
 
-- **支持类型说明**
+- 确定性计算：aclnnRmsNormDynamicQuant默认确定性实现。
 
-  是否支持空Tensor：不支持空进空出。
+- 输入shape限制：输入`x`的最后一维必须小于等于8192，否则可能出现精度问题。
 
-- **数据格式说明**
-
-  所有输入输出Tensor的数据格式推荐使用ND格式，其他数据格式会由框架默认转换成ND格式进行处理。
-
-- **各产品型号支持数据类型说明**
-
-  <!-- npu="A3,910b" id7 -->
-  - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
-
-    | `x`数据类型 | `gamma`数据类型 | `smoothScalesOptional`数据类型 | `betaOptional`数据类型 | `yOut`数据类型 | `scaleOut`数据类型 |
-    | ----------- | -------------- | ----------------------------- | -------------------- | -------------- | ------------------ |
-    | FLOAT16     | FLOAT16        | FLOAT16                       | FLOAT16              | INT8           | FLOAT32            |
-    | BFLOAT16    | BFLOAT16       | BFLOAT16                      | BFLOAT16             | INT8           | FLOAT32            |
-  <!-- end id7 -->
-
-- 确定性计算：
-  - aclnnRmsNormDynamicQuant默认确定性实现。
+- 输入值域限制：`x`不支持全0输入。
 
 ## 调用示例
 

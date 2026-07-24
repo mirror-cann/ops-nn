@@ -127,13 +127,14 @@
 
 ## 约束说明
 
-- 输入`x`的最后一维必须小于等于8192。
+- 输入shape限制：输入`x`的最后一维必须小于等于8192，否则可能出现精度问题。
 
-- 输入`x`的每一行不能全为零（否则归一化后仍全为零，量化 scale 为 0 导致除法异常）。
+- 输入值域限制：`x`不支持全0输入。
 
 ## 调用说明
 
-| 调用方式   | 样例代码           | 说明                                         |
+| 调用方式   | 调用样例           | 说明                                         |
 | ---------------- | --------------------------- | --------------------------------------------------- |
-| aclnn接口  | [test_aclnn_rms_norm_dynamic_quant](examples/test_aclnn_rms_norm_dynamic_quant.cpp) | 通过[aclnnRmsNormDynamicQuant](docs/aclnnRmsNormDynamicQuant.md)接口方式调用RmsNormDynamicQuant算子。 |
-| 图模式 | -  | 通过[算子IR](op_graph/rms_norm_dynamic_quant_proto.h)构图方式调用RmsNormDynamicQuant算子。         |
+| aclnn API  | [test_aclnn_rms_norm_dynamic_quant](examples/test_aclnn_rms_norm_dynamic_quant.cpp) | 通过[aclnnRmsNormDynamicQuant](docs/aclnnRmsNormDynamicQuant.md)接口方式调用RmsNormDynamicQuant算子 |
+| GE图模式 | [test_geir_rms_norm_dynamic_quant](examples/test_geir_rms_norm_dynamic_quant.cpp) | 通过[算子IR](op_graph/rms_norm_dynamic_quant_proto.h)构图方式调用RmsNormDynamicQuant算子 |
+| PyTorch API | - | 通过[cann_ops_nn.rms_norm_dynamic_quant](docs/torchapi_rms_norm_dynamic_quant.md)接口调用RmsNormDynamicQuant算子 |
