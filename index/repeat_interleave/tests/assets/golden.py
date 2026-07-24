@@ -16,7 +16,7 @@ __golden__ = {"kernel": {"repeat_interleave": "repeat_interleave_golden"}}
 
 
 def repeat_interleave_golden(x, repeats, *, axis=1000, **kwargs):
-    '''
+    """
     Golden function for repeat_interleave.
     All the parameters (names and order) follow @repeat_interleave_def.cpp without outputs.
     All the input Tensors are numpy.ndarray.
@@ -27,24 +27,32 @@ def repeat_interleave_golden(x, repeats, *, axis=1000, **kwargs):
 
     Returns:
         Output tensor
-    '''
+    """
     import torch
-    
-    output_shapes = kwargs.get('output_shapes', [[]])
+
+    output_shapes = kwargs.get("output_shapes", [[]])
     output_shape = output_shapes[0] if output_shapes else []
-    
+
     repeats_val = repeats.item() if isinstance(repeats, np.ndarray) else repeats
     axis_val = axis % len(x.shape)
-    
+
     if output_shape and repeats_val != output_shape[axis_val]:
         repeats_val = output_shape[axis_val]
-    
-    dtypes = {'uint64': 'int64', 'uint16': 'int16', 'uint32': 'int32'}
+
+    dtypes = {"uint64": "int64", "uint16": "int16", "uint32": "int32"}
     if x.dtype.name in dtypes.keys():
         input_x = x.view(dtypes[x.dtype.name])
     else:
         input_x = x
-    
-    x_torch = torch.from_numpy(input_x)
+
+    input_dtype = input_x.dtype
+    if input_dtype.name == "bfloat16":
+        x_torch = torch.from_numpy(input_x.view(np.int16)).view(torch.bfloat16)
+    else:
+        x_torch = torch.from_numpy(input_x)
+
     res_torch = torch.repeat_interleave(x_torch, repeats_val, axis_val)
+
+    if input_dtype.name == "bfloat16":
+        return res_torch.view(torch.int16).numpy().view(x.dtype)
     return res_torch.numpy().view(x.dtype)
