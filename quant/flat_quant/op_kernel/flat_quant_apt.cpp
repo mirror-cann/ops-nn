@@ -24,8 +24,9 @@ using namespace FlatQuantNS;
 using namespace Cmct;
 using namespace Cmct::Gemm;
 
-extern "C" __global__ __aicore__ void flat_quant(GM_ADDR x, GM_ADDR kronecker_p1, GM_ADDR kronecker_p2, GM_ADDR out,
-                                                 GM_ADDR quant_scale, GM_ADDR workspace, GM_ADDR tiling)
+extern "C" __global__ __aicore__ void flat_quant(GM_ADDR x, GM_ADDR kronecker_p1, GM_ADDR kronecker_p2,
+                                                 GM_ADDR group_list, GM_ADDR out, GM_ADDR quant_scale,
+                                                 GM_ADDR workspace, GM_ADDR tiling)
 {
     AscendC::InitSocState();
     GET_TILING_DATA(tilingData, tiling);
@@ -46,7 +47,7 @@ extern "C" __global__ __aicore__ void flat_quant(GM_ADDR x, GM_ADDR kronecker_p1
         if (TILING_KEY_IS(4)) {
             FlatQuantHigh<DTYPE_X> op;
             REGIST_MATMUL_OBJ(&op.pipe, GetSysWorkSpacePtr(), op.matmulR, mmTilingR, op.matmulL, mmTilingL);
-            op.Init(x, kronecker_p1, kronecker_p2, out, quant_scale, workspace, &tilingData);
+            op.Init(x, kronecker_p1, kronecker_p2, group_list, out, quant_scale, workspace, &tilingData);
             op.Process();
         }
     }

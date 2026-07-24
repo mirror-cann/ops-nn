@@ -23,20 +23,26 @@
 #pragma pack(1)
 
 struct FlatQuantTilingData {
-    uint8_t dataType;
-
-    int64_t K;
-    int64_t M;
-    int64_t N;
-    float clipRatio;
+    uint8_t dataType = 0;
+    uint8_t hasP2 = 1;
+    int64_t K = 0;
+    int64_t M = 0;
+    int64_t N = 0;
+    int64_t iterBatch = 0;
+    float clipRatio = 1.0f;
+    float dstTypeMax = 0.0f;
+    float invDstTypeMax = 0.0f;
     TCubeTiling matmulTilingL;
     TCubeTiling matmulTilingR;
+    int64_t groupNum = 0;
+    int64_t groupListType = 0;
 };
 
 #pragma pack()
 
 #ifdef __NPU_TILING__
-inline [aicore] void InitTilingData(const __gm__ uint8_t* tiling, FlatQuantTilingData* constData) {
+inline[aicore] void InitTilingData(const __gm__ uint8_t* tiling, FlatQuantTilingData* constData)
+{
     const __gm__ uint32_t* src = (const __gm__ uint32_t*)tiling;
     uint32_t* dst = (uint32_t*)constData;
     for (auto i = 0; i < sizeof(FlatQuantTilingData) / 4; i++)

@@ -117,6 +117,7 @@
 - [aclnnFatreluMul](../../activation/fatrelu_mul/docs/aclnnFatreluMul.md)
 - [aclnnFlatQuant](../../quant/flat_quant/docs/aclnnFlatQuant.md)
 - [aclnnFlatQuantV2](../../quant/flat_quant/docs/aclnnFlatQuantV2.md)
+- [aclnnFlatQuantV3](../../quant/flat_quant/docs/aclnnFlatQuantV3.md)
 - [aclnnFlip](../../index/reverse_v2/docs/aclnnFlip.md)
 - [aclnnForeachACosInplace](../../foreach/foreach_a_cos_inplace/docs/aclnnForeachACosInplace.md)
 - [aclnnForeachAbs](../../foreach/foreach_abs/docs/aclnnForeachAbs.md)

@@ -19,23 +19,28 @@
 #include "tensor_utils.h"
 
 namespace FlatQuantNS {
-template <typename T, uint8_t MM_MODE>
+template <typename T>
 class FlatQuantVecOne {
 public:
     aifunc FlatQuantVecOne() {}
-    aifunc void Init(GM_ADDR p1mtx_, GM_ADDR out_, GM_ADDR qscale_, GM_ADDR workspace_,
+    aifunc void Init(GM_ADDR p1mtx_, GM_ADDR groupList_, GM_ADDR out_, GM_ADDR qscale_, GM_ADDR workspace_,
                      const FlatQuantTilingData* tilingData)
     {
         shape.M = tilingData->M;
         shape.N = tilingData->N;
         shape.K = tilingData->K;
         clipRatio = tilingData->clipRatio;
-        tiling();
 
         p1GM.SetGlobalBuffer((__gm__ T*)p1mtx_);
         outGM.SetGlobalBuffer((__gm__ int4b_t*)out_);
         qscaleGM.SetGlobalBuffer((__gm__ float*)qscale_);
         outnzGM.SetGlobalBuffer((__gm__ T*)workspace_);
+        if (tilingData->groupNum > 0) {
+            groupListGM.SetGlobalBuffer((__gm__ int64_t*)groupList_);
+            shape.K = GetQuantK(groupListGM, tilingData->groupNum, tilingData->groupListType, tilingData->K);
+            zeroK = tilingData->K - shape.K;
+        }
+        tiling();
 
         pipe.InitBuffer(bufQueue, ONE_UB_SIZE);
         xTensor = bufQueue.Get<float>();
@@ -44,9 +49,6 @@ public:
         y2Tensor = yTensor[DATA_COUNT_ONE];
         qscaleTensor = y2Tensor[DATA_COUNT_ONE];
 
-        eventIdVToS = static_cast<event_t>(pipe.FetchEventID(HardEvent::V_S));
-        eventIdVToMte2 = static_cast<event_t>(pipe.FetchEventID(HardEvent::V_MTE2));
-        eventIdMte2ToMte3 = static_cast<event_t>(pipe.FetchEventID(HardEvent::MTE2_MTE3));
         eventIdVToMte3 = static_cast<event_t>(pipe.FetchEventID(HardEvent::V_MTE3));
         eventIdMte3ToV = static_cast<event_t>(pipe.FetchEventID(HardEvent::MTE3_V));
     }
@@ -85,8 +87,13 @@ public:
         shape.K = oriK;
         shape.M = 1;
         shape.Mceil = 1;
-        splitRow = DATA_COUNT / shape.Nceil / CEIL_SIZE * CEIL_SIZE;
-        splitCount = (shape.Mceil + splitRow - 1) / splitRow;
+
+        if (zeroK > 0) {
+            int64_t aivNum = GetBlockNum() * DOUBLE;
+            int64_t singleCoreZeroK = (zeroK + aivNum - 1) / aivNum;
+            zeroStartK = GetBlockIdx() * singleCoreZeroK;
+            zeroEndK = ((zeroStartK + singleCoreZeroK) > zeroK) ? zeroK : (zeroStartK + singleCoreZeroK);
+        }
     }
 
     aifunc void Process()
@@ -94,8 +101,6 @@ public:
         DataCopyExtParams copyParams{1, static_cast<uint32_t>(1 * sizeof(T)), 0, 0, 0};
         DataCopyPadExtParams<T> padParams{false, 0, 0, 0};
         DataCopyPad(xTensor.template ReinterpretCast<T>()[CEIL_SIZE], p1GM, copyParams, padParams);
-        SetEvtFlag<HardEvent::MTE2_S>();
-        p1Value = xTensor.template ReinterpretCast<T>().GetValue(0);
         SetEvtFlag<HardEvent::MTE2_V>();
         Cast(xTensor, xTensor.template ReinterpretCast<T>()[CEIL_SIZE], RoundMode::CAST_NONE, NUM_EIGHT);
         SetEvtFlag<HardEvent::V_S>();
@@ -133,8 +138,27 @@ public:
                 scaleK = endK;
             }
         }
+        ProcessZeroK();
         in_empty.release();
         out_empty.release();
+    }
+
+    aifunc void ProcessZeroK()
+    {
+        if (zeroStartK >= zeroEndK) {
+            return;
+        }
+        SetFlag<HardEvent::MTE3_V>(eventIdMte3ToV);
+        WaitFlag<HardEvent::MTE3_V>(eventIdMte3ToV);
+        Duplicate<float>(xTensor, (float)0, DATA_COUNT_ONE);
+        Duplicate<float>(qscaleTensor, (float)0, SCALE_COUNT);
+        SetFlag<HardEvent::V_MTE3>(eventIdVToMte3);
+        WaitFlag<HardEvent::V_MTE3>(eventIdVToMte3);
+        int64_t zeroOffset = (shape.K + zeroStartK) * shape.M * shape.N;
+        int64_t zeroCount = (zeroEndK - zeroStartK) * shape.M * shape.N;
+        ClearGM(outGM[zeroOffset], xTensor.template ReinterpretCast<int4b_t>(), DATA_COUNT_ONE * sizeof(float) * DOUBLE,
+                zeroCount);
+        ClearGM(qscaleGM[shape.K + zeroStartK], qscaleTensor, SCALE_COUNT, zeroEndK - zeroStartK);
     }
 
     aifunc void ClearQuant()
@@ -281,6 +305,7 @@ private:
     TPipe pipe;
     FlatQuantShapeInfo shape;
     GlobalTensor<T> p1GM;
+    GlobalTensor<int64_t> groupListGM;
     GlobalTensor<int4b_t> outGM;
     GlobalTensor<float> qscaleGM;
     GlobalTensor<T> outnzGM;
@@ -293,9 +318,6 @@ private:
     LocalTensor<float> y2Tensor;
     LocalTensor<float> qscaleTensor;
 
-    event_t eventIdVToS;
-    event_t eventIdVToMte2;
-    event_t eventIdMte2ToMte3;
     event_t eventIdVToMte3;
     event_t eventIdMte3ToV;
 
@@ -304,13 +326,12 @@ private:
     DEvent<PIPE_V, PIPE_MTE3> out_ready{EVENT_ID4, EVENT_ID5};
     DEvent<PIPE_MTE3, PIPE_V> out_empty{EVENT_ID4, EVENT_ID5};
 
-    int64_t splitRow = 0;
-    int64_t splitCount = 0;
+    int64_t zeroK = 0;
+    int64_t zeroStartK = 0;
+    int64_t zeroEndK = 0;
     float clipRatio = 0.0f;
     uint32_t tailK = 0;
     float p1ValueCast = 0.0;
-    T p1Value = 0.0;
-    bool isNan = false;
     int64_t perM = 0;
     uint32_t perKM = 0;
     uint32_t perTailKM = 0;

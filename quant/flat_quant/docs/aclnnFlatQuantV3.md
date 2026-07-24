@@ -1,4 +1,4 @@
-# aclnnFlatQuantV2
+# aclnnFlatQuantV3
 
 [📄 查看源码](https://gitcode.com/cann/ops-nn/tree/master/quant/flat_quant)
 
@@ -8,10 +8,10 @@
 - <term>Ascend 950PR/Ascend 950DT</term>：支持
 <!-- end id1 -->
 <!-- npu="A3" id2 -->
-- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：不支持
+- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：支持
 <!-- end id2 -->
 <!-- npu="910b" id3 -->
-- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：不支持
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持
 <!-- end id3 -->
 <!-- npu="310b" id4 -->
 - <term>Atlas 200I/500 A2 推理产品</term>：不支持
@@ -25,14 +25,16 @@
 
 ## 功能说明
 
-- **与V1版本的差异**：
+- **与V2版本的差异**：
+  - V3版本新增了`groupList`、`groupListType`参数，用于指定量化分组情况。
   - V2版本新增了`dstTypeMax`参数，用于在pergroup量化方式（对应float4_e2m1输出类型）中控制目标数据类型的最大值。
   - V1版本不支持自定义目标数据类型最大值，默认使用目标精度能表示的最大值。
 
 - **用户选择建议**：
-  - 若需自定义float4_e2m1量化时的目标数据类型最大值（取值范围6.0-12.0），请选择V2版本。
-  - 若只需使用默认的目标精度最大值或使用INT4/INT32量化输出类型，V1和V2版本均可使用。
-  - 对于需要更精细控制量化范围以优化模型性能或精度的场景，推荐使用V2版本。
+  - 若需要指定量化的分组情况，请选择V3版本。
+  - 若需自定义float4_e2m1量化时的目标数据类型最大值（取值范围6.0-12.0），请选择V2和V3版本。
+  - 若量化不进行分组，使用默认的目标精度最大值，使用INT4/INT32量化输出类型，V1、V2和V3版本均可使用。
+  - 对于需要更精细控制量化范围以优化模型性能或精度的场景，推荐使用V2和V3版本。
 
 - 接口功能：该融合算子为输入矩阵x一次进行两次小矩阵乘法，即右乘输入矩阵kroneckerP2，左乘输入矩阵kroneckerP1，然后针对矩阵乘的结果进行量化处理。目前支持pertoken和pergroup量化方式，分别对应INT4和FLOAT4_E2M1量化输出类型。
 
@@ -139,15 +141,17 @@
 
 ## 函数原型
 
-每个算子分为[两段式接口](../../../docs/zh/context/two_phase_api.md)，必须先调用`aclnnFlatQuantV2GetWorkspaceSize`接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用`aclnnFlatQuantV2`接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/two_phase_api.md)，必须先调用`aclnnFlatQuantV3GetWorkspaceSize`接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用`aclnnFlatQuantV3`接口执行计算。
 
 ```Cpp
-aclnnStatus aclnnFlatQuantV2GetWorkspaceSize(
+aclnnStatus aclnnFlatQuantV3GetWorkspaceSize(
   const aclTensor *x,
   const aclTensor *kroneckerP1,
   const aclTensor *kroneckerP2,
+  const aclTensor *groupListOptional,
   double           clipRatio,
   double           dstTypeMax,
+  int64_t          groupListType,
   aclTensor       *out,
   aclTensor       *quantScale,
   uint64_t        *workspaceSize,
@@ -155,14 +159,14 @@ aclnnStatus aclnnFlatQuantV2GetWorkspaceSize(
 ```
 
 ```Cpp
-aclnnStatus aclnnFlatQuantV2(
+aclnnStatus aclnnFlatQuantV3(
     void          *workspace,
     uint64_t       workspaceSize,
     aclOpExecutor *executor,
     aclrtStream    stream)
 ```
 
-## aclnnFlatQuantV2GetWorkspaceSize
+## aclnnFlatQuantV3GetWorkspaceSize
 
 - **参数说明**：
   <table style="undefined;table-layout: fixed; width: 1550px"><colgroup>
@@ -218,6 +222,16 @@ aclnnStatus aclnnFlatQuantV2(
       <td>√</td>
     </tr>
     <tr>
+      <td>groupListOptional（aclTensor*）</td>
+      <td>可选输入</td>
+      <td>代表输入`x`的量化分组大小分布。</td>
+      <td><ul><li>不支持空Tensor。</li><li>当groupListType为0或1时，shape为[G]，当groupListType为2时，shape为[G, 2]，G表示分组数，G需要小于等于1024。</li></ul></td>
+      <td>INT64</td>
+      <td>ND</td>
+      <td>1-2</td>
+      <td>√</td>
+    </tr>
+    <tr>
       <td>clipRatio（double）</td>
       <td>输入</td>
       <td>用于控制量化的裁剪比例对应公式中的`clipRatio`。</td>
@@ -232,8 +246,18 @@ aclnnStatus aclnnFlatQuantV2(
       <td>输入</td>
       <td>表示maxType的取值，对应公式中的Amax(DType)。</td>
       <td><ul><li>支持取值0.0，6.0-12.0，取值为0.0代表不使用该参数；取值为6.0-12.0代表目标数据类型的最大值。仅支持在FLOAT4_E2M1数据类型时设置该值。</li></ul></td>
-      <td>DOUBLE</td>
-      <td>ND</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>groupListType（int64）</td>
+      <td>输入</td>
+      <td>代表groupList输入的分组方式。</td>
+      <td><ul><li>当groupListOptional不为nullptr时支持取值0，1，2。</li></ul></td>
+      <td>-</td>
+      <td>-</td>
       <td>-</td>
       <td>-</td>
     </tr>
@@ -305,8 +329,8 @@ aclnnStatus aclnnFlatQuantV2(
       <td>传入参数中的必选输入（x、kroneckerP1、kroneckerP2）、必选输出（out、quantScale）是空指针。</td>
     </tr>
     <tr>
-      <td rowspan="12">ACLNN_ERR_PARAM_INVALID</td>
-      <td rowspan="12">161002</td>
+      <td rowspan="13">ACLNN_ERR_PARAM_INVALID</td>
+      <td rowspan="13">161002</td>
       <td>x、kroneckerP1、kroneckerP2、out、quantScale的数据类型或数据格式不在支持的范围之内。</td>
     </tr>
     <tr>
@@ -339,9 +363,15 @@ aclnnStatus aclnnFlatQuantV2(
     <tr>
       <td>out的数据类型为INT32时，x的shape尾轴不是out的shape尾轴大小的8倍，或者x与out的shape的非尾轴的大小不一致。</td>
     </tr>
+    <tr>
+      <td>out的数据类型为INT32时，x的shape尾轴不是out的shape尾轴大小的8倍，或者x与out的shape的非尾轴的大小不一致。</td>
+    </tr>
+    <tr>
+      <td>groupList、groupListType的数据类型、维度、shape或参数取值不符合约束。</td>
+    </tr>
   </tbody></table>
 
-## aclnnFlatQuantV2
+## aclnnFlatQuantV3
 
 - **参数说明**：
 
@@ -365,7 +395,7 @@ aclnnStatus aclnnFlatQuantV2(
     <tr>
       <td>workspaceSize</td>
       <td>输入</td>
-      <td>在Device侧申请的workspace大小，由第一段接口aclnnFlatQuantV2GetWorkspaceSize获取。</td>
+      <td>在Device侧申请的workspace大小，由第一段接口aclnnFlatQuantV3GetWorkspaceSize获取。</td>
     </tr>
     <tr>
       <td>executor</td>
@@ -386,8 +416,23 @@ aclnnStatus aclnnFlatQuantV2(
 
 ## 约束说明
 
+- 参数groupListOptional、groupListType需要满足如下约束：
+  <!-- npu="950" id7 -->
+  - <term>Ascend 950PR/Ascend 950DT</term>：
+    - groupListOptional仅支持nullptr。
+  <!-- end id7 -->
+  <!-- npu="A3,910b" id8 -->
+  - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+    - groupListOptional不为nullptr时：
+      - groupListType必须从[0, 1, 2]中取值。
+      - 当groupListType为0或1时，shape为[G]，当groupListType为2时，shape为[G, 2]，G表示分组数，G需要小于等于1024。
+      - groupListOptional的数值需要满足以下条件，否则无法保证输出是否符合预期：
+        - 当groupListType为0时，groupListOptional必须为非负单调非递减数列，表示分组后每组大小的cumsum结果（累计和），最后一个值应小于等于x中tensor的第一维。
+        - 当groupListType为1时，groupListOptional必须为非负数列，表示分组后每组大小，数值的总和应小于等于x中tensor的第一维。
+        - 当groupListType为2时，groupListOptional必须为非负数列，数据排布为[[groupIdx0, groupSize0], [groupIdx1, groupSize1]...]，其中groupSize为分组后每组大小，第二列数值的总和应小于等于x中tensor的第一维。
+  <!-- end id8 -->
 - 确定性计算：
-  - aclnnFlatQuantV2默认确定性实现。
+  - aclnnFlatQuantV3默认确定性实现。
 
 ## 调用示例
 
@@ -397,7 +442,7 @@ aclnnStatus aclnnFlatQuantV2(
 #include <iostream>
 #include <vector>
 #include "acl/acl.h"
-#include "aclnnop/aclnn_flat_quant_v2.h"
+#include "aclnnop/aclnn_flat_quant_v3.h"
 
 #define CHECK_RET(cond, return_expr) \
     do {                             \
@@ -433,9 +478,8 @@ int Init(int32_t deviceId, aclrtStream* stream)
 }
 
 template <typename T>
-int CreateAclTensor(
-    const std::vector<T>& hostData, const std::vector<int64_t>& shape, void** deviceAddr, aclDataType dataType,
-    aclTensor** tensor)
+int CreateAclTensor(const std::vector<T>& hostData, const std::vector<int64_t>& shape, void** deviceAddr,
+                    aclDataType dataType, aclTensor** tensor)
 {
     auto size = GetShapeSize(shape) * sizeof(T);
     // 调用aclrtMalloc申请device侧内存
@@ -453,9 +497,8 @@ int CreateAclTensor(
     }
 
     // 调用aclCreateTensor接口创建aclTensor
-    *tensor = aclCreateTensor(
-        shape.data(), shape.size(), dataType, strides.data(), 0, aclFormat::ACL_FORMAT_ND, shape.data(), shape.size(),
-        *deviceAddr);
+    *tensor = aclCreateTensor(shape.data(), shape.size(), dataType, strides.data(), 0, aclFormat::ACL_FORMAT_ND,
+                              shape.data(), shape.size(), *deviceAddr);
     return 0;
 }
 
@@ -472,23 +515,28 @@ int main()
     std::vector<int64_t> xShape = {16, 16, 16};
     std::vector<int64_t> kroneckerP1Shape = {16, 16};
     std::vector<int64_t> kroneckerP2Shape = {16, 16};
+    std::vector<int64_t> groupListShape = {1};
     std::vector<int64_t> outShape = {16, 16, 2};
     std::vector<int64_t> quantScaleShape = {16};
     void* xDeviceAddr = nullptr;
     void* kroneckerP1DeviceAddr = nullptr;
     void* kroneckerP2DeviceAddr = nullptr;
+    void* groupListDeviceAddr = nullptr;
     void* outDeviceAddr = nullptr;
     void* quantScaleDeviceAddr = nullptr;
     aclTensor* x = nullptr;
     aclTensor* kroneckerP1 = nullptr;
     aclTensor* kroneckerP2 = nullptr;
+    aclTensor* groupList = nullptr;
     aclTensor* out = nullptr;
     aclTensor* quantScale = nullptr;
     double clipRatio = 1.0;
     double dstTypeMax = 0.0;
+    int64_t groupListType = 0;
     std::vector<aclFloat16> xHostData(16 * 16 * 16, aclFloatToFloat16(1));
     std::vector<aclFloat16> kroneckerP1HostData(16 * 16, aclFloatToFloat16(1));
     std::vector<aclFloat16> kroneckerP2HostData(16 * 16, aclFloatToFloat16(1));
+    std::vector<int64_t> groupListHostData = {8};
     std::vector<int32_t> outHostData(16 * 16 * 2, 1);
     std::vector<float> quantScaleHostData(16, 0);
     // 创建x aclTensor
@@ -496,46 +544,48 @@ int main()
     CHECK_RET(ret == ACL_SUCCESS, return ret);
 
     // 创建kroneckerP1 aclTensor
-    ret = CreateAclTensor(
-        kroneckerP1HostData, kroneckerP1Shape, &kroneckerP1DeviceAddr, aclDataType::ACL_FLOAT16, &kroneckerP1);
+    ret = CreateAclTensor(kroneckerP1HostData, kroneckerP1Shape, &kroneckerP1DeviceAddr, aclDataType::ACL_FLOAT16,
+                          &kroneckerP1);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     // 创建kroneckerP2 aclTensor
-    ret = CreateAclTensor(
-        kroneckerP2HostData, kroneckerP2Shape, &kroneckerP2DeviceAddr, aclDataType::ACL_FLOAT16, &kroneckerP2);
+    ret = CreateAclTensor(kroneckerP2HostData, kroneckerP2Shape, &kroneckerP2DeviceAddr, aclDataType::ACL_FLOAT16,
+                          &kroneckerP2);
+    CHECK_RET(ret == ACL_SUCCESS, return ret);
+    // 创建groupList aclTensor
+    ret = CreateAclTensor(groupListHostData, groupListShape, &groupListDeviceAddr, aclDataType::ACL_INT64, &groupList);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
 
     // 创建out aclTensor
     ret = CreateAclTensor(outHostData, outShape, &outDeviceAddr, aclDataType::ACL_INT32, &out);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     // 创建quantScale aclTensor
-    ret = CreateAclTensor(
-        quantScaleHostData, quantScaleShape, &quantScaleDeviceAddr, aclDataType::ACL_FLOAT, &quantScale);
+    ret = CreateAclTensor(quantScaleHostData, quantScaleShape, &quantScaleDeviceAddr, aclDataType::ACL_FLOAT,
+                          &quantScale);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     // 3. 调用CANN算子库API，需要修改为具体的API
     uint64_t workspaceSize = 0;
     aclOpExecutor* executor;
-    // 调用aclnnFlatQuantV2第一段接口
-    ret = aclnnFlatQuantV2GetWorkspaceSize(
-        x, kroneckerP1, kroneckerP2, clipRatio, dstTypeMax, out, quantScale, &workspaceSize, &executor);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlatQuantV2GetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
+    // 调用aclnnFlatQuantV3第一段接口
+    ret = aclnnFlatQuantV3GetWorkspaceSize(x, kroneckerP1, kroneckerP2, groupList, clipRatio, dstTypeMax, groupListType,
+                                           out, quantScale, &workspaceSize, &executor);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlatQuantV3GetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
     // 根据第一段接口计算出的workspaceSize申请device内存
     void* workspaceAddr = nullptr;
     if (workspaceSize > 0) {
         ret = aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret); return ret;);
     }
-    // 调用aclnnFlatQuantV2第二段接口
-    ret = aclnnFlatQuantV2(workspaceAddr, workspaceSize, executor, stream);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlatQuantV2 failed. ERROR: %d\n", ret); return ret);
+    // 调用aclnnFlatQuantV3第二段接口
+    ret = aclnnFlatQuantV3(workspaceAddr, workspaceSize, executor, stream);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnFlatQuantV3 failed. ERROR: %d\n", ret); return ret);
     // 4. （固定写法）同步等待任务执行结束
     ret = aclrtSynchronizeStream(stream);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclrtSynchronizeStream failed. ERROR: %d\n", ret); return ret);
     // 5. 获取输出的值，将device侧内存上的结果复制至host侧，需要根据具体API的接口定义修改
     auto size = GetShapeSize(outShape);
     std::vector<int32_t> resultData(size, 0);
-    ret = aclrtMemcpy(
-        resultData.data(), resultData.size() * sizeof(resultData[0]), outDeviceAddr, size * sizeof(int32_t),
-        ACL_MEMCPY_DEVICE_TO_HOST);
+    ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]), outDeviceAddr,
+                      size * sizeof(int32_t), ACL_MEMCPY_DEVICE_TO_HOST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return ret);
     for (int64_t i = 0; i < size; i++) {
         LOG_PRINT("result[%ld] is: %d\n", i, resultData[i]);
@@ -543,9 +593,8 @@ int main()
 
     auto quantScaleSize = GetShapeSize(quantScaleShape);
     std::vector<float> quantScaleResultData(quantScaleSize, 0);
-    ret = aclrtMemcpy(
-        quantScaleResultData.data(), quantScaleResultData.size() * sizeof(quantScaleResultData[0]),
-        quantScaleDeviceAddr, quantScaleSize * sizeof(float), ACL_MEMCPY_DEVICE_TO_HOST);
+    ret = aclrtMemcpy(quantScaleResultData.data(), quantScaleResultData.size() * sizeof(quantScaleResultData[0]),
+                      quantScaleDeviceAddr, quantScaleSize * sizeof(float), ACL_MEMCPY_DEVICE_TO_HOST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return ret);
     for (int64_t i = 0; i < quantScaleSize; i++) {
         LOG_PRINT("result[%ld] is: %f\n", i, quantScaleResultData[i]);
@@ -555,6 +604,7 @@ int main()
     aclDestroyTensor(x);
     aclDestroyTensor(kroneckerP1);
     aclDestroyTensor(kroneckerP2);
+    aclDestroyTensor(groupList);
     aclDestroyTensor(out);
     aclDestroyTensor(quantScale);
 
@@ -562,6 +612,7 @@ int main()
     aclrtFree(xDeviceAddr);
     aclrtFree(kroneckerP1DeviceAddr);
     aclrtFree(kroneckerP2DeviceAddr);
+    aclrtFree(groupListDeviceAddr);
     aclrtFree(outDeviceAddr);
     aclrtFree(quantScaleDeviceAddr);
     if (workspaceSize > 0) {

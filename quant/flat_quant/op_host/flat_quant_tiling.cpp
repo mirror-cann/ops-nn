@@ -48,6 +48,10 @@ constexpr int32_t BASE_SIZE = 128;
 constexpr int32_t L1_SIZE = 512 * 1024;
 constexpr int32_t L0_SIZE = 64 * 1024;
 constexpr int32_t L0C_SIZE = 256 * 1024;
+constexpr int32_t GROUP_LIST_DENSE_DIM = 1;
+constexpr int32_t GROUP_LIST_SPARSE_DIM = 2;
+constexpr int32_t GROUP_LIST_SPARSE_TYPE = 2;
+constexpr int32_t MAX_GROUP_LIST_SIZE = 1024;
 
 constexpr float ZERO_FLOAT = 0.0f;
 constexpr float ONE_FLOAT = 1.0f;
@@ -65,13 +69,14 @@ constexpr uint64_t WORK_SPACE_SIZE_APT = 48 * 1024 * 1024;
 
 class FlatQuantTiling {
 public:
-    explicit FlatQuantTiling(gert::TilingContext* context) : tilingContext_(context){};
+    explicit FlatQuantTiling(gert::TilingContext* context) : tilingContext_(context) {};
     ge::graphStatus RunBigKernelTiling();
 
 private:
-    bool ValidateAll() const;
+    bool ValidateAll();
     bool CheckShapes() const;
     bool CheckClipRatio() const;
+    bool CheckGroupList();
     bool CheckDstDtype(ge::DataType outDtype) const;
     bool CheckDstTypeMax(ge::DataType outDtype) const;
     void GetKernelMode(int64_t aivNum);
@@ -93,17 +98,21 @@ private:
     gert::Shape xShape_;
     gert::Shape p1Shape_;
     gert::Shape p2Shape_;
+    gert::Shape groupListShape_;
 
     uint64_t mAlign_ = 0;
     uint64_t nAlign_ = 0;
     uint64_t iterBatch_ = 0;
+    int64_t groupNum_ = 0;
 
     uint8_t mmMode_ = MM_BASE_MODE;
     bool hasP2_ = true;
+    bool hasGroupList_ = false;
 
     const float* clipRatio_ = nullptr;
     const int64_t* dstDtype_ = nullptr;
     const float* dstTypeMax_ = nullptr;
+    const int64_t* groupListType_ = nullptr;
     FlatQuantTilingData tilingData_;
 };
 
@@ -113,10 +122,12 @@ ge::graphStatus FlatQuantTiling::InitializeInputsAndAttributes()
     auto xTensor = tilingContext_->GetInputTensor(INDEX_ZERO);
     auto p1Tensor = tilingContext_->GetInputTensor(INDEX_ONE);
     auto p2Tensor = tilingContext_->GetInputTensor(INDEX_TWO);
+    auto groupListTensor = tilingContext_->GetOptionalInputTensor(INDEX_THREE);
     const gert::RuntimeAttrs* attrs = tilingContext_->GetAttrs();
     if (xTensor == nullptr || p1Tensor == nullptr || p2Tensor == nullptr || attrs == nullptr) {
         return ge::GRAPH_FAILED;
     }
+    hasGroupList_ = groupListTensor != nullptr;
     // 获取输入的数据类型，输入Tensor的数据类型保持一致
     for (uint64_t i = 0; i < INPUT_TENSOR_NUM; i++) {
         auto temp = tilingContext_->GetInputDesc(i);
@@ -138,10 +149,15 @@ ge::graphStatus FlatQuantTiling::InitializeInputsAndAttributes()
     p1Shape_ = p1Shape->GetOriginShape();
     p2Shape_ = p2Shape->GetOriginShape();
     hasP2_ = (p2Shape_.GetDim(INDEX_ZERO) > 0 && p2Shape_.GetDim(INDEX_ONE) > 0);
+    if (hasGroupList_) {
+        auto groupListShape = tilingContext_->GetInputShape(INDEX_THREE);
+        OP_CHECK_NULL_WITH_CONTEXT(tilingContext_, groupListShape);
+        groupListShape_ = groupListShape->GetOriginShape();
+    }
     clipRatio_ = attrs->GetAttrPointer<float>(INDEX_ZERO);
     dstDtype_ = attrs->GetAttrPointer<int64_t>(INDEX_ONE);
     dstTypeMax_ = attrs->GetAttrPointer<float>(INDEX_TWO);
-
+    groupListType_ = attrs->GetAttrPointer<int64_t>(INDEX_THREE);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -156,6 +172,8 @@ ge::graphStatus FlatQuantTiling::SetBasicTilingData()
     }
     // 设置基本的tiling数据
     tilingData_.set_hasP2(hasP2_ ? 1 : 0);
+    tilingData_.set_groupNum(groupNum_);
+    tilingData_.set_groupListType(*groupListType_);
     tilingData_.set_K(xShape_.GetDim(INDEX_ZERO));
     tilingData_.set_M(xShape_.GetDim(INDEX_ONE));
     tilingData_.set_N(xShape_.GetDim(INDEX_TWO));
@@ -174,7 +192,7 @@ ge::graphStatus FlatQuantTiling::SetBasicTilingData()
 ge::graphStatus FlatQuantTiling::CalculateIterBatch()
 {
     auto compileInfo = tilingContext_->GetCompileInfo<FlatQuantCompileInfo>();
-    int64_t aicNum = compileInfo->coreNum;
+    int64_t aicNum = compileInfo->aicNum;
     int64_t aivNum = compileInfo->aivNum;
     GetKernelMode(aivNum);
     if (mmMode_ == MM_HIGH_MODE && GetTCubeTiling() != ge::GRAPH_SUCCESS) {
@@ -197,7 +215,7 @@ ge::graphStatus FlatQuantTiling::CalculateIterBatch()
 ge::graphStatus FlatQuantTiling::SetTilingContextAndSaveData()
 {
     auto compileInfo = tilingContext_->GetCompileInfo<FlatQuantCompileInfo>();
-    tilingContext_->SetBlockDim(compileInfo->coreNum);
+    tilingContext_->SetBlockDim(compileInfo->aicNum);
     tilingContext_->SetTilingKey(mmMode_);
     // 保存tiling数据
     tilingData_.SaveToBuffer(tilingContext_->GetRawTilingData()->GetData(),
@@ -269,7 +287,8 @@ void FlatQuantTiling::CalculateWorkspace(int64_t aivNum, ge::DataType outDtype)
     size_t* workspaces = tilingContext_->GetWorkspaceSizes(WORKSPACE_NUM);
 
     if (outDtype == ge::DT_FLOAT4_E2M1) {
-        if (IsRegbaseSocVersion(tilingContext_)) {
+        auto compileInfo = tilingContext_->GetCompileInfo<FlatQuantCompileInfo>();
+        if (compileInfo != nullptr && compileInfo->npuArch == NpuArch::DAV_3510) {
             int64_t useAivNum = CeilA2B(K, K_PER_VEC) <= aivNum ? CeilA2B(K, K_PER_VEC) : aivNum;
             workspaces[0] = useAivNum *
                                 (K_PER_VEC * M * N * BYTE_LEN_2 + FACTOR_TWO * K_PER_VEC * mAlign_ * N * BYTE_LEN_4) +
@@ -375,6 +394,38 @@ bool FlatQuantTiling::CheckClipRatio() const
     return true;
 }
 
+bool FlatQuantTiling::CheckGroupList()
+{
+    groupNum_ = 0;
+    auto compileInfo = tilingContext_->GetCompileInfo<FlatQuantCompileInfo>();
+    if (compileInfo != nullptr && compileInfo->npuArch == NpuArch::DAV_3510) {
+        OP_CHECK_IF(hasGroupList_ == true,
+                    OP_LOGE(tilingContext_->GetNodeName(), "For ascend950, group_list only support nullptr.."),
+                    return false);
+    }
+    if (compileInfo != nullptr && compileInfo->npuArch == NpuArch::DAV_2201 && hasGroupList_) {
+        OP_CHECK_IF(*groupListType_ < 0 || *groupListType_ > GROUP_LIST_SPARSE_TYPE,
+                    OP_LOGE(tilingContext_->GetNodeName(), "group_list_type must be one of [0, 1, 2], got %ld.",
+                            *groupListType_),
+                    return false);
+        OP_CHECK_IF(
+            *groupListType_ == GROUP_LIST_SPARSE_TYPE && (groupListShape_.GetDimNum() != GROUP_LIST_SPARSE_DIM ||
+                                                          groupListShape_.GetDim(INDEX_ONE) != GROUP_LIST_SPARSE_DIM),
+            OP_LOGE(tilingContext_->GetNodeName(), "group_list shape must be [G, 2] when group_list_type is 2."),
+            return false);
+        OP_CHECK_IF(
+            *groupListType_ != GROUP_LIST_SPARSE_TYPE && groupListShape_.GetDimNum() != GROUP_LIST_DENSE_DIM,
+            OP_LOGE(tilingContext_->GetNodeName(), "group_list shape must be [G] when group_list_type is 0 or 1."),
+            return false);
+        groupNum_ = groupListShape_.GetDim(INDEX_ZERO);
+        OP_CHECK_IF(groupNum_ > MAX_GROUP_LIST_SIZE,
+                    OP_LOGE(tilingContext_->GetNodeName(), "group_list dim0[%ld] should be less than or equal to 1024.",
+                            groupNum_),
+                    return false);
+    }
+    return true;
+}
+
 bool FlatQuantTiling::CheckDstDtype(ge::DataType outDtype) const
 {
     if (dstDtype_ != nullptr && outDtype == ge::DT_FLOAT4_E2M1) {
@@ -396,12 +447,15 @@ bool FlatQuantTiling::CheckDstTypeMax(ge::DataType outDtype) const
     return true;
 }
 
-bool FlatQuantTiling::ValidateAll() const
+bool FlatQuantTiling::ValidateAll()
 {
     if (!CheckShapes()) {
         return false;
     }
     if (!CheckClipRatio()) {
+        return false;
+    }
+    if (!CheckGroupList()) {
         return false;
     }
     auto outDesc = tilingContext_->GetOutputDesc(INDEX_ZERO);
@@ -443,17 +497,16 @@ static ge::graphStatus TilingPrepareTiling(gert::TilingParseContext* context)
     auto compileInfo = context->GetCompiledInfo<FlatQuantCompileInfo>();
     OP_CHECK_NULL_WITH_CONTEXT(context, compileInfo);
 
-    compileInfo->coreNum = ascendcPlatform.GetCoreNumAic();
+    compileInfo->aicNum = ascendcPlatform.GetCoreNumAic();
     compileInfo->aivNum = ascendcPlatform.GetCoreNumAiv();
-    compileInfo->socVersion = ascendcPlatform.GetSocVersion();
     compileInfo->npuArch = ascendcPlatform.GetCurNpuArch();
 
     OP_LOGI("FlatQuant", "parse compile info success soc:%d, aicNum:%ld, aivNum:%ld",
-            static_cast<int>(compileInfo->socVersion), compileInfo->coreNum, compileInfo->aivNum);
-    OP_CHECK_IF(compileInfo->coreNum <= 0,
-                OP_LOGE(context->GetNodeName(), "FlatQuant is not supported for aicNum <=0 "), return ge::GRAPH_FAILED);
+            static_cast<int>(ascendcPlatform.GetSocVersion()), compileInfo->aicNum, compileInfo->aivNum);
+    OP_CHECK_IF(compileInfo->aicNum <= 0, OP_LOGE(context->GetNodeName(), "FlatQuant is not supported for aicNum <=0 "),
+                return ge::GRAPH_FAILED);
     if (compileInfo->npuArch == NpuArch::DAV_3510) {
-        OP_CHECK_IF(compileInfo->aivNum != (compileInfo->coreNum * 2), // aivNum must == aicNum*2
+        OP_CHECK_IF(compileInfo->aivNum != (compileInfo->aicNum * 2), // aivNum must == aicNum*2
                     OP_LOGE(context->GetNodeName(), "FlatQuantTiling is only supported for aivNum == aicNum*2 "),
                     return ge::GRAPH_FAILED);
     }

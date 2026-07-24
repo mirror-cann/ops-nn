@@ -22,13 +22,18 @@ template <typename T>
 class FlatQuantHigh {
 public:
     aifunc FlatQuantHigh() {}
-    aifunc void Init(GM_ADDR xmtx_, GM_ADDR p1mtx_, GM_ADDR p2mtx_, GM_ADDR out_, GM_ADDR qscale_, GM_ADDR workspace_,
-                     const FlatQuantTilingData* tilingData)
+    aifunc void Init(GM_ADDR xmtx_, GM_ADDR p1mtx_, GM_ADDR p2mtx_, GM_ADDR groupList_, GM_ADDR out_, GM_ADDR qscale_,
+                     GM_ADDR workspace_, const FlatQuantTilingData* tilingData)
     {
         shape.M = tilingData->M;
         shape.N = tilingData->N;
         shape.K = tilingData->K;
         clipRatio = tilingData->clipRatio;
+        if (tilingData->groupNum > 0) {
+            groupListGM.SetGlobalBuffer((__gm__ int64_t*)groupList_);
+            shape.K = GetQuantK(groupListGM, tilingData->groupNum, tilingData->groupListType, tilingData->K);
+            zeroK = tilingData->K - shape.K;
+        }
         tiling();
 
         xGM.SetGlobalBuffer((__gm__ T*)xmtx_);
@@ -70,6 +75,12 @@ public:
         splitRow = DATA_COUNT / shape.Nceil / CEIL_SIZE * CEIL_SIZE;
         x1Offset = GetBlockIdx() * K_PER_VEC * shape.M * shape.N;
         x2Offset = GetBlockIdx() * K_DOUBLE_VEC * shape.Mceil * shape.N;
+
+        if (zeroK > 0) {
+            int64_t singleCoreZeroK = (zeroK + aivNum - 1) / aivNum;
+            zeroStartK = GetBlockIdx() * singleCoreZeroK;
+            zeroEndK = ((zeroStartK + singleCoreZeroK) > zeroK) ? zeroK : (zeroStartK + singleCoreZeroK);
+        }
     }
 
     aifunc void Process()
@@ -93,6 +104,25 @@ public:
                 scaleK = k;
             }
         }
+        ProcessZeroK();
+    }
+
+    aifunc void ProcessZeroK()
+    {
+        if (zeroStartK >= zeroEndK) {
+            return;
+        }
+        SetFlag<HardEvent::MTE3_V>(eventIdMte3ToV);
+        WaitFlag<HardEvent::MTE3_V>(eventIdMte3ToV);
+        Duplicate<float>(xTensor, (float)0, DATA_COUNT);
+        Duplicate<float>(qscaleTensor, (float)0, SCALE_COUNT);
+        SetFlag<HardEvent::V_MTE3>(eventIdVToMte3);
+        WaitFlag<HardEvent::V_MTE3>(eventIdVToMte3);
+        int64_t zeroOffset = (shape.K + zeroStartK) * shape.M * shape.N;
+        int64_t zeroCount = (zeroEndK - zeroStartK) * shape.M * shape.N;
+        ClearGM(outGM[zeroOffset], xTensor.template ReinterpretCast<int4b_t>(), DATA_COUNT * sizeof(float) * DOUBLE,
+                zeroCount);
+        ClearGM(qscaleGM[shape.K + zeroStartK], qscaleTensor, SCALE_COUNT, zeroEndK - zeroStartK);
     }
 
     aifunc void CopyOutQuant(int64_t scaleK, int64_t scaleCount)
@@ -159,7 +189,9 @@ public:
 
             CalReduceMax(absTensor, rowNumCeil * shape.Nceil, eventIdVToS);
             float tmpMax = static_cast<float>(absTensor.GetValue(0));
-            maxValue = AscendC::Std::max(tmpMax, maxValue);
+            if (tmpMax != tmpMax || tmpMax > maxValue) {
+                maxValue = tmpMax;
+            }
         }
     }
 
@@ -201,6 +233,7 @@ private:
     GlobalTensor<T> xGM;
     GlobalTensor<T> p1GM;
     GlobalTensor<T> p2GM;
+    GlobalTensor<int64_t> groupListGM;
     GlobalTensor<int4b_t> outGM;
     GlobalTensor<float> qscaleGM;
     GlobalTensor<T> x1GM;
@@ -227,6 +260,9 @@ private:
     int64_t useAivNum = 0;
     int64_t x1Offset = 0;
     int64_t x2Offset = 0;
+    int64_t zeroK = 0;
+    int64_t zeroStartK = 0;
+    int64_t zeroEndK = 0;
 };
 } // namespace FlatQuantNS
 

@@ -4,14 +4,24 @@
 
 ## 产品支持情况
 
-|产品             |  是否支持  |
-|:-------------------------|:----------:|
-|  <term>Ascend 950PR/Ascend 950DT</term>   |     √    |
-|  <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>   |     √    |
-|  <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>     |     √    |
-|  <term>Atlas 200I/500 A2 推理产品</term>    |     ×    |
-|  <term>Atlas 推理系列产品</term>    |     ×    |
-|  <term>Atlas 训练系列产品</term>    |     ×    |
+<!-- npu="950" id1 -->
+- <term>Ascend 950PR/Ascend 950DT</term>：支持
+<!-- end id1 -->
+<!-- npu="A3" id2 -->
+- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：支持
+<!-- end id2 -->
+<!-- npu="910b" id3 -->
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持
+<!-- end id3 -->
+<!-- npu="310b" id4 -->
+- <term>Atlas 200I/500 A2 推理产品</term>：不支持
+<!-- end id4 -->
+<!-- npu="310p" id5 -->
+- <term>Atlas 推理系列产品</term>：不支持
+<!-- end id5 -->
+<!-- npu="910" id6 -->
+- <term>Atlas 训练系列产品</term>：不支持
+<!-- end id6 -->
 
 ## 功能说明
 
@@ -38,7 +48,7 @@
   1. 沿着x''的0维计算最大绝对值并除以(7 / clipRatio)以计算需量化为INT4格式的量化因子：
 
      $$
-     quantScale = [max(abs(x''[0,:,:])),max(abs(x''[1,:,:])),...,max(abs(x''[K,:,:]))]/(7 / clipRatio)
+     quantScale = [max(abs(x''[0,:,:])),max(abs(x''[1,:,:])),...,max(abs(x''[M-1,:,:]))]/(7 / clipRatio)
      $$
 
   2. 计算输出的out：
@@ -49,7 +59,7 @@
 
   pergroup量化方式
 
-  1. 矩阵乘后x''的shape为[K,M,N],在计算pergroup量化方式其中的mx_quantize时，需reshape为[K,M*N],记为x2
+  1. 矩阵乘后x''的shape为[M,N1,N2],在计算pergroup量化方式其中的mx_quantize时，需reshape为[M,N1*N2],记为x2
 
   2. 在x2第二维上按照groupsize进行分组，包含元素e0,e1...e31。计算出emax
 
@@ -64,13 +74,13 @@
      $$
 
      $$
-     sharedExp[K,M*N/32] = reduceMaxValue -emax
+     sharedExp[M,N1*N2/32] = reduceMaxValue -emax
      $$
 
   4. 计算quantScale
 
      $$
-     quantScale[K,M*N/32] = 2 ^ {sharedExp[K,M*N/32]}
+     quantScale[M,N1*N2/32] = 2 ^ {sharedExp[M,N1*N2/32]}
      $$
 
   5. 每groupsize共享一个quantScale，计算out
@@ -132,7 +142,7 @@ aclnnStatus aclnnFlatQuant(
       <td>x（aclTensor*）</td>
       <td>输入</td>
       <td>输入的原始数据，对应公式中的`x`。</td>
-      <td><ul><li>不支持空Tensor。</li><li>shape为[K, M, N]，其中，K不超过262144，M和N不超过256。</li><li>如果out的数据类型为INT32，N必须是8的整数倍。</li><li>如果out的数据类型为INT4，N必须是偶数。</li><li>如果out的数据类型为FLOAT4_E2M1，N必须是偶数。</li></ul></td>
+      <td><ul><li>不支持空Tensor。</li><li>shape为[M, N1, N2]，其中，M不超过262144，N1和N2不超过256。</li><li>如果out的数据类型为INT32，N2必须是8的整数倍。</li><li>如果out的数据类型为INT4，N2必须是偶数。</li><li>如果out的数据类型为FLOAT4_E2M1，N2必须是偶数。</li></ul></td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
       <td>3</td>
@@ -142,7 +152,7 @@ aclnnStatus aclnnFlatQuant(
       <td>kroneckerP1（aclTensor*）</td>
       <td>输入</td>
       <td>输入的计算矩阵1，对应公式中的`kroneckerP1`。</td>
-      <td><ul><li>不支持空Tensor。</li><li>shape为[M, M]，M与x中M维一致。</li><li>数据类型与入参x的数据类型一致。</li></ul></td>
+      <td><ul><li>不支持空Tensor。</li><li>shape为[N1, N1]，N1与x中N1维一致。</li><li>数据类型与入参x的数据类型一致。</li></ul></td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
       <td>2</td>
@@ -152,7 +162,7 @@ aclnnStatus aclnnFlatQuant(
       <td>kroneckerP2（aclTensor*）</td>
       <td>输入</td>
       <td>输入的计算矩阵2，对应公式中的`kroneckerP2`。</td>
-      <td><ul><li>不支持空Tensor。</li><li>shape为[N, N]，其中N与x中N维一致。仅在perGroup场景下支持shape为[0,0]，表示算子不使用右矩阵计算，只进行左矩阵相乘。</li><li>数据类型与入参x的数据类型一致。</li></ul></td>
+      <td><ul><li>不支持空Tensor。</li><li>shape为[N2, N2]，其中N2与x中N2维一致。仅在perGroup场景下支持shape为[0,0]，表示算子不使用右矩阵计算，只进行左矩阵相乘。</li><li>数据类型与入参x的数据类型一致。</li></ul></td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
       <td>2</td>
@@ -172,7 +182,7 @@ aclnnStatus aclnnFlatQuant(
       <td>out（aclTensor*）</td>
       <td>输出</td>
       <td>输出张量，对应公式中的out。</td>
-      <td><ul><li>不支持空Tensor。</li><li>数据类型为INT32时，shape的最后一维是入参x最后一维的1/8，其余维度和x一致。</li><li>数据类型为INT4时，shape与入参x一致。</li><li>数据类型为FLOAT4_E2M1时，shape为[K,M*N]。</li></ul></td>
+      <td><ul><li>不支持空Tensor。</li><li>数据类型为INT32时，shape的最后一维是入参x最后一维的1/8，其余维度和x一致。</li><li>数据类型为INT4时，shape与入参x一致。</li><li>数据类型为FLOAT4_E2M1时，shape为[M,N1*N2]。</li></ul></td>
       <td>INT4、INT32、FLOAT4_E2M1</td>
       <td>ND</td>
       <td>3或2</td>
@@ -182,7 +192,7 @@ aclnnStatus aclnnFlatQuant(
       <td>quantScale（aclTensor*）</td>
       <td>输出</td>
       <td>输出的量化因子，对应公式中的quantScale。</td>
-      <td><ul><li>不支持空Tensor。</li><li>量化输出类型为INT4或INT32时，shape为[K],K与x中K维度一致，数据类型为FLOAT32。</li><li>量化输出类型为FLOAT4_E2M1时，shape为[K,ceildiv(M*N,64),2]，数据类型为FLOAT8_E8M0。</li></ul></td>
+      <td><ul><li>不支持空Tensor。</li><li>量化输出类型为INT4或INT32时，shape为[M],M与x中M维度一致，数据类型为FLOAT32。</li><li>量化输出类型为FLOAT4_E2M1时，shape为[M,ceildiv(N1*N2,64),2]，数据类型为FLOAT8_E8M0。</li></ul></td>
       <td>FLOAT32、FLOAT8_E8M0</td>
       <td>ND</td>
       <td>1或3</td>

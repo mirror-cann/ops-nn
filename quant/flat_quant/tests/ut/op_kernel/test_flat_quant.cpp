@@ -25,8 +25,9 @@
 #include "kernel_ut_data_helper.h"
 #include "kernel_ut_data_executor.h"
 
-extern "C" __global__ __aicore__ void flat_quant(GM_ADDR x, GM_ADDR kronecker_p1, GM_ADDR kronecker_p2, GM_ADDR out,
-                                                 GM_ADDR quant_scale, GM_ADDR workspace, GM_ADDR tiling);
+extern "C" __global__ __aicore__ void flat_quant(GM_ADDR x, GM_ADDR kronecker_p1, GM_ADDR kronecker_p2,
+                                                 GM_ADDR group_list, GM_ADDR out, GM_ADDR quant_scale,
+                                                 GM_ADDR workspace, GM_ADDR tiling);
 
 class flat_quant_test : public testing::Test {
 protected:
@@ -37,7 +38,8 @@ protected:
 TEST_F(flat_quant_test, test_case_float16_1)
 {
     kernel_ut::SetupTestEnvironment("quant/flat_quant/tests/ut/op_kernel/flat_quant_data", "flat_quant_data");
-    kernel_ut::RunGenData("./flat_quant_data", {"'(1, 128, 128)'", "'(128, 128)'", "'(128, 128)'", "'float16'"});
+    kernel_ut::RunGenData("./flat_quant_data",
+                          {"'(1, 128, 128)'", "'(128, 128)'", "'(128, 128)'", "'(0)'", "'float16'"});
 
     size_t xByteSize = 1 * 128 * 128 * sizeof(half);
     size_t p1ByteSize = 128 * 128 * sizeof(half);
@@ -61,16 +63,14 @@ TEST_F(flat_quant_test, test_case_float16_1)
 
     FlatQuantTilingData* tilingDatafromBin = reinterpret_cast<FlatQuantTilingData*>(tiling);
 
-    tilingDatafromBin->dataType = 1;
     tilingDatafromBin->K = 1;
     tilingDatafromBin->M = 128;
     tilingDatafromBin->N = 128;
-    tilingDatafromBin->clipRatio = 1.0f;
 
     uint32_t blockDim = 1;
     ICPU_SET_TILING_KEY(1);
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    ICPU_RUN_KF(flat_quant, blockDim, x, kronecker_p1, kronecker_p2, out, quant_scale, workspace,
+    ICPU_RUN_KF(flat_quant, blockDim, x, kronecker_p1, kronecker_p2, nullptr, out, quant_scale, workspace,
                 (uint8_t*)(tilingDatafromBin));
 
     WriteFile("./flat_quant_data/float16_output_quant_scale_flat_quant.bin", quant_scale, scaleByteSize);
@@ -89,7 +89,7 @@ TEST_F(flat_quant_test, test_case_float16_1)
 TEST_F(flat_quant_test, test_case_float16_2)
 {
     kernel_ut::SetupTestEnvironment("quant/flat_quant/tests/ut/op_kernel/flat_quant_data", "flat_quant_data");
-    kernel_ut::RunGenData("./flat_quant_data", {"'(4, 16, 16)'", "'(16, 16)'", "'(16, 16)'", "'float16'"});
+    kernel_ut::RunGenData("./flat_quant_data", {"'(4, 16, 16)'", "'(16, 16)'", "'(16, 16)'", "'(0)'", "'float16'"});
 
     size_t xByteSize = 4 * 16 * 16 * sizeof(half);
     size_t p1ByteSize = 16 * 16 * sizeof(half);
@@ -113,16 +113,14 @@ TEST_F(flat_quant_test, test_case_float16_2)
 
     FlatQuantTilingData* tilingDatafromBin = reinterpret_cast<FlatQuantTilingData*>(tiling);
 
-    tilingDatafromBin->dataType = 1;
     tilingDatafromBin->K = 4;
     tilingDatafromBin->M = 16;
     tilingDatafromBin->N = 16;
-    tilingDatafromBin->clipRatio = 1.0f;
 
     uint32_t blockDim = 8;
     ICPU_SET_TILING_KEY(2);
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    ICPU_RUN_KF(flat_quant, blockDim, x, kronecker_p1, kronecker_p2, out, quant_scale, workspace,
+    ICPU_RUN_KF(flat_quant, blockDim, x, kronecker_p1, kronecker_p2, nullptr, out, quant_scale, workspace,
                 (uint8_t*)(tilingDatafromBin));
 
     WriteFile("./flat_quant_data/float16_output_quant_scale_flat_quant.bin", quant_scale, scaleByteSize);
@@ -141,7 +139,8 @@ TEST_F(flat_quant_test, test_case_float16_2)
 TEST_F(flat_quant_test, test_case_float16_3)
 {
     kernel_ut::SetupTestEnvironment("quant/flat_quant/tests/ut/op_kernel/flat_quant_data", "flat_quant_data");
-    kernel_ut::RunGenData("./flat_quant_data", {"'(1, 160, 128)'", "'(160, 160)'", "'(128, 128)'", "'float16'"});
+    kernel_ut::RunGenData("./flat_quant_data",
+                          {"'(1, 160, 128)'", "'(160, 160)'", "'(128, 128)'", "'(0)'", "'float16'"});
 
     size_t xByteSize = 1 * 160 * 128 * sizeof(half);
     size_t p1ByteSize = 160 * 160 * sizeof(half);
@@ -165,16 +164,14 @@ TEST_F(flat_quant_test, test_case_float16_3)
 
     FlatQuantTilingData* tilingDatafromBin = reinterpret_cast<FlatQuantTilingData*>(tiling);
 
-    tilingDatafromBin->dataType = 1;
     tilingDatafromBin->K = 1;
     tilingDatafromBin->M = 160;
     tilingDatafromBin->N = 128;
-    tilingDatafromBin->clipRatio = 1.0f;
 
     uint32_t blockDim = 1;
     ICPU_SET_TILING_KEY(3);
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    ICPU_RUN_KF(flat_quant, blockDim, x, kronecker_p1, kronecker_p2, out, quant_scale, workspace,
+    ICPU_RUN_KF(flat_quant, blockDim, x, kronecker_p1, kronecker_p2, nullptr, out, quant_scale, workspace,
                 (uint8_t*)(tilingDatafromBin));
 
     WriteFile("./flat_quant_data/float16_output_quant_scale_flat_quant.bin", quant_scale, scaleByteSize);
@@ -193,7 +190,8 @@ TEST_F(flat_quant_test, test_case_float16_3)
 TEST_F(flat_quant_test, test_case_float16_4)
 {
     kernel_ut::SetupTestEnvironment("quant/flat_quant/tests/ut/op_kernel/flat_quant_data", "flat_quant_data");
-    kernel_ut::RunGenData("./flat_quant_data", {"'(1, 256, 256)'", "'(256, 256)'", "'(256, 256)'", "'float16'"});
+    kernel_ut::RunGenData("./flat_quant_data",
+                          {"'(1, 256, 256)'", "'(256, 256)'", "'(256, 256)'", "'(0)'", "'float16'"});
 
     size_t xByteSize = 1 * 256 * 256 * sizeof(half);
     size_t p1ByteSize = 256 * 256 * sizeof(half);
@@ -217,11 +215,9 @@ TEST_F(flat_quant_test, test_case_float16_4)
 
     FlatQuantTilingData* tilingDatafromBin = reinterpret_cast<FlatQuantTilingData*>(tiling);
 
-    tilingDatafromBin->dataType = 1;
     tilingDatafromBin->K = 1;
     tilingDatafromBin->M = 256;
     tilingDatafromBin->N = 256;
-    tilingDatafromBin->clipRatio = 1.0f;
     tilingDatafromBin->matmulTilingL.M = 256;
     tilingDatafromBin->matmulTilingL.N = 256;
     tilingDatafromBin->matmulTilingL.Ka = 256;
@@ -274,7 +270,7 @@ TEST_F(flat_quant_test, test_case_float16_4)
     uint32_t blockDim = 1;
     ICPU_SET_TILING_KEY(4);
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    ICPU_RUN_KF(flat_quant, blockDim, x, kronecker_p1, kronecker_p2, out, quant_scale, workspace,
+    ICPU_RUN_KF(flat_quant, blockDim, x, kronecker_p1, kronecker_p2, nullptr, out, quant_scale, workspace,
                 (uint8_t*)(tilingDatafromBin));
 
     WriteFile("./flat_quant_data/float16_output_quant_scale_flat_quant.bin", quant_scale, scaleByteSize);
@@ -293,7 +289,7 @@ TEST_F(flat_quant_test, test_case_float16_4)
 TEST_F(flat_quant_test, test_case_float16_5)
 {
     kernel_ut::SetupTestEnvironment("quant/flat_quant/tests/ut/op_kernel/flat_quant_data", "flat_quant_data");
-    kernel_ut::RunGenData("./flat_quant_data", {"'(2, 1, 16)'", "'(1, 1)'", "'(16, 16)'", "'float16'"});
+    kernel_ut::RunGenData("./flat_quant_data", {"'(2, 1, 16)'", "'(1, 1)'", "'(16, 16)'", "'(0)'", "'float16'"});
 
     size_t xByteSize = 2 * 1 * 16 * sizeof(half);
     size_t p1ByteSize = 1 * 1 * sizeof(half);
@@ -317,16 +313,14 @@ TEST_F(flat_quant_test, test_case_float16_5)
 
     FlatQuantTilingData* tilingDatafromBin = reinterpret_cast<FlatQuantTilingData*>(tiling);
 
-    tilingDatafromBin->dataType = 1;
     tilingDatafromBin->K = 2;
     tilingDatafromBin->M = 1;
     tilingDatafromBin->N = 16;
-    tilingDatafromBin->clipRatio = 1.0f;
 
     uint32_t blockDim = 1;
     ICPU_SET_TILING_KEY(5);
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
-    ICPU_RUN_KF(flat_quant, blockDim, x, kronecker_p1, kronecker_p2, out, quant_scale, workspace,
+    ICPU_RUN_KF(flat_quant, blockDim, x, kronecker_p1, kronecker_p2, nullptr, out, quant_scale, workspace,
                 (uint8_t*)(tilingDatafromBin));
 
     WriteFile("./flat_quant_data/float16_output_quant_scale_flat_quant.bin", quant_scale, scaleByteSize);
@@ -334,6 +328,61 @@ TEST_F(flat_quant_test, test_case_float16_5)
     AscendC::GmFree((void*)(x));
     AscendC::GmFree((void*)(kronecker_p1));
     AscendC::GmFree((void*)(kronecker_p2));
+    AscendC::GmFree((void*)(out));
+    AscendC::GmFree((void*)(quant_scale));
+    AscendC::GmFree((void*)workspace);
+    AscendC::GmFree((void*)tiling);
+
+    kernel_ut::RunCompareData("./flat_quant_data", {});
+}
+
+TEST_F(flat_quant_test, test_case_float16_6)
+{
+    kernel_ut::SetupTestEnvironment("quant/flat_quant/tests/ut/op_kernel/flat_quant_data", "flat_quant_data");
+    kernel_ut::RunGenData("./flat_quant_data", {"'(16, 16, 16)'", "'(16, 16)'", "'(16, 16)'", "'(1)'", "'float16'"});
+
+    size_t xByteSize = 16 * 16 * 16 * sizeof(half);
+    size_t p1ByteSize = 16 * 16 * sizeof(half);
+    size_t p2ByteSize = 16 * 16 * sizeof(half);
+    size_t groupListByteSize = 1 * sizeof(int64_t);
+    size_t outByteSize = 16 * 16 * 16 * sizeof(int8_t) / 2;
+    size_t scaleByteSize = 16 * sizeof(float);
+    size_t workspaceSize = 16 * 16 * 16 * sizeof(half) + 16 * 1024 * 1024;
+
+    uint8_t* x = (uint8_t*)AscendC::GmAlloc(xByteSize);
+    uint8_t* kronecker_p1 = (uint8_t*)AscendC::GmAlloc(p1ByteSize);
+    uint8_t* kronecker_p2 = (uint8_t*)AscendC::GmAlloc(p2ByteSize);
+    uint8_t* group_list = (uint8_t*)AscendC::GmAlloc(groupListByteSize);
+    uint8_t* out = (uint8_t*)AscendC::GmAlloc(outByteSize);
+    uint8_t* quant_scale = (uint8_t*)AscendC::GmAlloc(scaleByteSize);
+
+    uint8_t* workspace = (uint8_t*)AscendC::GmAlloc(workspaceSize);
+    uint8_t* tiling = (uint8_t*)AscendC::GmAlloc(sizeof(FlatQuantTilingData));
+
+    ReadFile("./flat_quant_data/float16_input_x_flat_quant.bin", xByteSize, x, xByteSize);
+    ReadFile("./flat_quant_data/float16_input_kronecker_p1_flat_quant.bin", p1ByteSize, kronecker_p1, p1ByteSize);
+    ReadFile("./flat_quant_data/float16_input_kronecker_p2_flat_quant.bin", p2ByteSize, kronecker_p2, p2ByteSize);
+    ReadFile("./flat_quant_data/float16_input_group_list_flat_quant.bin", groupListByteSize, group_list,
+             groupListByteSize);
+
+    FlatQuantTilingData* tilingDatafromBin = reinterpret_cast<FlatQuantTilingData*>(tiling);
+
+    tilingDatafromBin->K = 16;
+    tilingDatafromBin->M = 16;
+    tilingDatafromBin->N = 16;
+
+    uint32_t blockDim = 1;
+    ICPU_SET_TILING_KEY(5);
+    AscendC::SetKernelMode(KernelMode::MIX_MODE);
+    ICPU_RUN_KF(flat_quant, blockDim, x, kronecker_p1, kronecker_p2, group_list, out, quant_scale, workspace,
+                (uint8_t*)(tilingDatafromBin));
+
+    WriteFile("./flat_quant_data/float16_output_quant_scale_flat_quant.bin", quant_scale, scaleByteSize);
+
+    AscendC::GmFree((void*)(x));
+    AscendC::GmFree((void*)(kronecker_p1));
+    AscendC::GmFree((void*)(kronecker_p2));
+    AscendC::GmFree((void*)(group_list));
     AscendC::GmFree((void*)(out));
     AscendC::GmFree((void*)(quant_scale));
     AscendC::GmFree((void*)workspace);

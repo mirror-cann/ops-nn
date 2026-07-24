@@ -15,6 +15,7 @@
 
 #include "aclnn_flat_quant.h"
 #include "aclnn_flat_quant_v2.h"
+#include "aclnn_flat_quant_v3.h"
 #include "flat_quant.h"
 #include "aclnn_kernels/contiguous.h"
 #include "aclnn_kernels/cast.h"
@@ -31,6 +32,10 @@ using namespace op;
 
 namespace {
 static constexpr int64_t INT4_NUMS_IN_INT32_SPACE = 8;
+static constexpr int64_t GROUP_LIST_DENSE_DIM = 1;
+static constexpr int64_t GROUP_LIST_SPARSE_DIM = 2;
+static constexpr int64_t GROUP_LIST_SPARSE_TYPE = 2;
+static constexpr int64_t MAX_GROUP_LIST_SIZE = 1024;
 static constexpr int32_t DIM_NUM = 3;
 static constexpr int32_t P_DIM_NUM = 2;
 static constexpr int32_t SCALE_DIM_NUM = 1;
@@ -53,6 +58,8 @@ static const std::initializer_list<op::DataType> EMPTY_LIST = {};
 static const std::initializer_list<op::DataType> IN_DTYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT16,
                                                                           op::DataType::DT_BF16};
 
+static const std::initializer_list<op::DataType> GROUP_LIST_DTYPE_SUPPORT_LIST = {op::DataType::DT_INT64};
+
 static const std::initializer_list<op::DataType> OUT_DTYPE_SUPPORT_LIST = {op::DataType::DT_INT32,
                                                                            op::DataType::DT_INT4};
 
@@ -66,6 +73,9 @@ static const std::initializer_list<op::DataType> SCALE_DTYPE_SUPPORT_LIST_REGBAS
 
 static const std::map<NpuArch, const std::initializer_list<op::DataType>*> SOC_IN_SUPPORT_DTYPES = {
     {NpuArch::DAV_2201, &IN_DTYPE_SUPPORT_LIST}, {NpuArch::DAV_3510, &IN_DTYPE_SUPPORT_LIST}};
+
+static const std::map<NpuArch, const std::initializer_list<op::DataType>*> SOC_GROUP_LIST_SUPPORT_DTYPES = {
+    {NpuArch::DAV_2201, &GROUP_LIST_DTYPE_SUPPORT_LIST}, {NpuArch::DAV_3510, &GROUP_LIST_DTYPE_SUPPORT_LIST}};
 
 static const std::map<NpuArch, const std::initializer_list<op::DataType>*> SOC_OUT_SUPPORT_DTYPES = {
     {NpuArch::DAV_2201, &OUT_DTYPE_SUPPORT_LIST}, {NpuArch::DAV_3510, &OUT_DTYPE_SUPPORT_LIST_REGBASE}};
@@ -292,6 +302,39 @@ static aclnnStatus CheckParams(const aclTensor* x, const aclTensor* kroneckerP1,
     CHECK_RET(CheckFormat(x, out, quantScale), ACLNN_ERR_PARAM_INVALID);
     return ACLNN_SUCCESS;
 }
+
+static bool CheckGroupList(const aclTensor* groupListOptional, int64_t groupListType)
+{
+    auto curArch = GetCurrentPlatformInfo().GetCurNpuArch();
+    if (curArch == NpuArch::DAV_3510) {
+        OP_CHECK(groupListOptional == nullptr,
+                 OP_LOGE(ACLNN_ERR_PARAM_INVALID, "For ascend950, groupListOptional only support nullptr."),
+                 return false);
+    }
+    if (curArch == NpuArch::DAV_2201 && groupListOptional != nullptr) {
+        OP_CHECK(groupListType >= 0 && groupListType <= GROUP_LIST_SPARSE_TYPE,
+                 OP_LOGE(ACLNN_ERR_PARAM_INVALID, "groupListType must be one of [0, 1, 2]."), return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(groupListOptional, GetDtypeSupportList(SOC_GROUP_LIST_SUPPORT_DTYPES), return false);
+        auto groupListShape = groupListOptional->GetViewShape();
+        if (groupListType == GROUP_LIST_SPARSE_TYPE) {
+            OP_CHECK(
+                groupListShape.GetDimNum() == GROUP_LIST_SPARSE_DIM &&
+                    groupListShape.GetDim(INDEX_1) == GROUP_LIST_SPARSE_DIM,
+                OP_LOGE(ACLNN_ERR_PARAM_INVALID, "groupListOptional shape should be [G, 2] when groupListType is 2."),
+                return false);
+        } else {
+            OP_CHECK(
+                groupListShape.GetDimNum() == GROUP_LIST_DENSE_DIM,
+                OP_LOGE(ACLNN_ERR_PARAM_INVALID, "groupListOptional shape should be [G] when groupListType is 0 or 1."),
+                return false);
+        }
+        OP_CHECK(groupListShape.GetDim(0) <= MAX_GROUP_LIST_SIZE,
+                 OP_LOGE(ACLNN_ERR_PARAM_INVALID, "groupListOptional dim0[%ld] should be less than or equal to 1024.",
+                         groupListShape.GetDim(0)),
+                 return false);
+    }
+    return true;
+}
 }; // namespace
 
 aclnnStatus aclnnFlatQuantGetWorkspaceSize(const aclTensor* x, const aclTensor* kroneckerP1,
@@ -319,9 +362,9 @@ aclnnStatus aclnnFlatQuantGetWorkspaceSize(const aclTensor* x, const aclTensor* 
     CHECK_RET(p2Contiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     auto outputDtype = out->GetDataType();
-    std::tuple<aclTensor*, aclTensor*> result = l0op::FlatQuant(selfContiguous, p1Contiguous, p2Contiguous,
-                                                                static_cast<float>(clipRatio), outputDtype, 0.0f, out,
-                                                                quantScale, uniqueExecutor.get());
+    std::tuple<aclTensor*, aclTensor*> result = l0op::FlatQuant(selfContiguous, p1Contiguous, p2Contiguous, nullptr,
+                                                                static_cast<float>(clipRatio), outputDtype, 0.0f, 0,
+                                                                out, quantScale, uniqueExecutor.get());
 
     const aclTensor* resultTensor = std::get<0>(result);
     const aclTensor* quantScaleTensor = std::get<1>(result);
@@ -372,8 +415,8 @@ aclnnStatus aclnnFlatQuantV2GetWorkspaceSize(const aclTensor* x, const aclTensor
 
     auto outputDtype = out->GetDataType();
     std::tuple<aclTensor*, aclTensor*> result = l0op::FlatQuant(
-        selfContiguous, p1Contiguous, p2Contiguous, static_cast<float>(clipRatio), outputDtype,
-        static_cast<float>(dstTypeMax), out, quantScale, uniqueExecutor.get());
+        selfContiguous, p1Contiguous, p2Contiguous, nullptr, static_cast<float>(clipRatio), outputDtype,
+        static_cast<float>(dstTypeMax), 0, out, quantScale, uniqueExecutor.get());
 
     const aclTensor* resultTensor = std::get<0>(result);
     const aclTensor* quantScaleTensor = std::get<1>(result);
@@ -396,6 +439,63 @@ aclnnStatus aclnnFlatQuantV2GetWorkspaceSize(const aclTensor* x, const aclTensor
     return ACLNN_SUCCESS;
 }
 
+aclnnStatus aclnnFlatQuantV3GetWorkspaceSize(const aclTensor* x, const aclTensor* kroneckerP1,
+                                             const aclTensor* kroneckerP2, const aclTensor* groupListOptional,
+                                             double clipRatio, double dstTypeMax, int64_t groupListType, aclTensor* out,
+                                             aclTensor* quantScale, uint64_t* workspaceSize, aclOpExecutor** executor)
+{
+    L2_DFX_PHASE_1(aclnnFlatQuantV3, DFX_IN(x, kroneckerP1, kroneckerP2, groupListOptional), DFX_OUT(out, quantScale));
+    // 固定写法，创建OpExecutor
+    auto uniqueExecutor = CREATE_EXECUTOR();
+    CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
+
+    // 固定写法，参数检查
+    auto ret = CheckParams(x, kroneckerP1, kroneckerP2, out, quantScale);
+    CHECK_RET(ret == ACLNN_SUCCESS, ret);
+    CHECK_RET(CheckRatioValid(clipRatio), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckMaxValid(dstTypeMax), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckGroupList(groupListOptional, groupListType), ACLNN_ERR_PARAM_INVALID);
+
+    // x如果非连续，需要转连续
+    auto selfContiguous = l0op::Contiguous(x, uniqueExecutor.get());
+    CHECK_RET(selfContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+    auto p1Contiguous = l0op::Contiguous(kroneckerP1, uniqueExecutor.get());
+    CHECK_RET(p1Contiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+    auto p2Contiguous = l0op::Contiguous(kroneckerP2, uniqueExecutor.get());
+    CHECK_RET(p2Contiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+    if (groupListOptional != nullptr) {
+        groupListOptional = l0op::Contiguous(groupListOptional, uniqueExecutor.get());
+        CHECK_RET(groupListOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    }
+
+    auto outputDtype = out->GetDataType();
+    std::tuple<aclTensor*, aclTensor*> result = l0op::FlatQuant(
+        selfContiguous, p1Contiguous, p2Contiguous, groupListOptional, static_cast<float>(clipRatio), outputDtype,
+        static_cast<float>(dstTypeMax), groupListType, out, quantScale, uniqueExecutor.get());
+
+    const aclTensor* resultTensor = std::get<0>(result);
+    const aclTensor* quantScaleTensor = std::get<1>(result);
+    CHECK_RET(resultTensor != nullptr && quantScaleTensor != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+    // 如果输出是Int4，需要转成Int32，8个Int4输出拼成1个Int32
+    const aclTensor* outTensor = resultTensor;
+    ret = Int42Int32PackedTensor(resultTensor, outTensor, out->GetDataType(), uniqueExecutor.get());
+    CHECK_RET(ret == ACLNN_SUCCESS, ret);
+
+    auto outResult = l0op::ViewCopy(outTensor, out, uniqueExecutor.get());
+    CHECK_RET(outResult != nullptr, ACLNN_ERR_PARAM_INVALID);
+    auto scaleResult = l0op::ViewCopy(quantScaleTensor, quantScale, uniqueExecutor.get());
+    CHECK_RET(scaleResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+    // 固定写法，获取计算过程中需要使用的workspace大小
+    *workspaceSize = uniqueExecutor->GetWorkspaceSize();
+    uniqueExecutor.ReleaseTo(executor); // 需要把 uniqueExecutor持有executor转移给executor
+    return ACLNN_SUCCESS;
+}
+
 aclnnStatus aclnnFlatQuant(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, aclrtStream stream)
 {
     L2_DFX_PHASE_2(aclnnFlatQuant);
@@ -405,5 +505,11 @@ aclnnStatus aclnnFlatQuant(void* workspace, uint64_t workspaceSize, aclOpExecuto
 aclnnStatus aclnnFlatQuantV2(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, aclrtStream stream)
 {
     L2_DFX_PHASE_2(aclnnFlatQuantV2);
+    return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
+}
+
+aclnnStatus aclnnFlatQuantV3(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, aclrtStream stream)
+{
+    L2_DFX_PHASE_2(aclnnFlatQuantV3);
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }

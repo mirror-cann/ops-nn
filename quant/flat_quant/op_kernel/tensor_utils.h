@@ -240,6 +240,40 @@ __aicore__ inline void CalReduceMaxOne(LocalTensor<half> srcTensor, int32_t rowN
                    ReduceOrder::ORDER_ONLY_VALUE);
     PipeBarrier<PIPE_V>();
 }
+
+__aicore__ inline int64_t GetQuantK(GlobalTensor<int64_t> groupListGM, int64_t groupNum, int64_t groupListType,
+                                    int64_t maxK)
+{
+    int64_t quantK = 0;
+    if (groupListType == 0) {
+        quantK = groupListGM.GetValue(groupNum - 1);
+    } else if (groupListType == 1) {
+        for (int64_t i = 0; i < groupNum; i++) {
+            quantK += groupListGM.GetValue(i);
+        }
+    } else {
+        groupNum *= 2;
+        for (int64_t i = 1; i < groupNum; i += 2) {
+            quantK += groupListGM.GetValue(i);
+        }
+    }
+    return (quantK > 0 && quantK < maxK) ? quantK : maxK;
+}
+
+template <typename T>
+__aicore__ inline void ClearGM(GlobalTensor<T> dst, LocalTensor<T> src, int64_t srcLength, int64_t dstLength)
+{
+    for (int64_t offset = 0; offset < dstLength; offset += srcLength) {
+        int64_t copyLength = (offset + srcLength > dstLength) ? (dstLength - offset) : srcLength;
+        if constexpr (std::is_same<T, int4b_t>::value) {
+            DataCopyExtParams copyParams{1, static_cast<uint32_t>(copyLength >> 1), 0, 0, 0};
+            DataCopyPad(dst[offset], src, copyParams);
+        } else {
+            DataCopyExtParams copyParams{1, static_cast<uint32_t>(copyLength * sizeof(T)), 0, 0, 0};
+            DataCopyPad(dst[offset], src, copyParams);
+        }
+    }
+}
 } // namespace FlatQuantNS
 
 #endif // TENSOR_UTILS_H

@@ -22,12 +22,16 @@ template <typename T, uint8_t MM_MODE>
 class FlatQuantCube {
 public:
     aifunc FlatQuantCube() {}
-    aifunc void Init(GM_ADDR xmtx_, GM_ADDR p1mtx_, GM_ADDR p2mtx_, GM_ADDR workspace_,
+    aifunc void Init(GM_ADDR xmtx_, GM_ADDR p1mtx_, GM_ADDR p2mtx_, GM_ADDR groupList_, GM_ADDR workspace_,
                      const FlatQuantTilingData* tilingData)
     {
         shape.M = tilingData->M;
         shape.N = tilingData->N;
         shape.K = tilingData->K;
+        groupListGM.SetGlobalBuffer((__gm__ int64_t*)groupList_);
+        if (tilingData->groupNum > 0) {
+            shape.K = GetQuantK(groupListGM, tilingData->groupNum, tilingData->groupListType, tilingData->K);
+        }
         tiling();
 
         xGM.SetGlobalBuffer((__gm__ T*)xmtx_);
@@ -442,6 +446,7 @@ private:
     GlobalTensor<T> xGM;
     GlobalTensor<T> p1GM;
     GlobalTensor<T> p2GM;
+    GlobalTensor<int64_t> groupListGM;
     GlobalTensor<half> outnzGM;
     GlobalTensor<T> doubleP1GM;
 

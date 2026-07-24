@@ -22,10 +22,8 @@
 namespace optiling {
 
 struct FlatQuantCompileInfo {
-    int64_t coreNum;
+    int64_t aicNum;
     int64_t aivNum;
-    platform_ascendc::SocVersion socVersion;
-    std::string socVersionStr = "";
     NpuArch npuArch = NpuArch::DAV_2201;
 };
 
@@ -42,6 +40,9 @@ TILING_DATA_FIELD_DEF(float, invDstTypeMax);
 
 TILING_DATA_FIELD_DEF_STRUCT(TCubeTiling, matmulTilingR);
 TILING_DATA_FIELD_DEF_STRUCT(TCubeTiling, matmulTilingL);
+
+TILING_DATA_FIELD_DEF(int64_t, groupNum); // group_list第一维的长度，为0表示group_list为空
+TILING_DATA_FIELD_DEF(int64_t, groupListType);
 END_TILING_DATA_DEF;
 
 REGISTER_TILING_DATA_CLASS(FlatQuant, FlatQuantTilingData)

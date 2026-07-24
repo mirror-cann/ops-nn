@@ -19,31 +19,33 @@
 #include "tensor_utils.h"
 
 namespace FlatQuantNS {
-template <typename T, uint8_t MM_MODE>
+template <typename T>
 class FlatQuantCubeOne {
 public:
     aifunc FlatQuantCubeOne() {}
-    aifunc void Init(GM_ADDR xmtx_, GM_ADDR p1mtx_, GM_ADDR p2mtx_, GM_ADDR workspace_,
+    aifunc void Init(GM_ADDR xmtx_, GM_ADDR p2mtx_, GM_ADDR groupList_, GM_ADDR workspace_,
                      const FlatQuantTilingData* tilingData)
     {
         shape.M = tilingData->M;
         shape.N = tilingData->N;
         shape.K = tilingData->K;
+        groupListGM.SetGlobalBuffer((__gm__ int64_t*)groupList_);
+        if (tilingData->groupNum > 0) {
+            shape.K = GetQuantK(groupListGM, tilingData->groupNum, tilingData->groupListType, tilingData->K);
+        }
         tiling();
 
         xGM.SetGlobalBuffer((__gm__ T*)xmtx_);
-        p1GM.SetGlobalBuffer((__gm__ T*)p1mtx_);
         p2GM.SetGlobalBuffer((__gm__ T*)p2mtx_);
         outnzGM.SetGlobalBuffer((__gm__ T*)workspace_);
 
         SetFixpipeNz2ndFlag(1, 1, shape.Nceil);
         pipe.InitBuffer(l1Buf, L1_SIZE);
         xTensor = l1Buf.Get<T>();
-        x2Tensor = xTensor[shape.calM * shape.Nceil];
-        yTensor = x2Tensor[shape.calM * shape.Nceil];
-        y2Tensor = yTensor[shape.calM * shape.Nceil];
-        p1Tensor = y2Tensor[shape.calM * shape.Nceil];
-        p2Tensor = p1Tensor[shape.calM * shape.calM];
+        x2Tensor = xTensor[shape.Mceil * shape.Nceil];
+        yTensor = x2Tensor[shape.Mceil * shape.Nceil];
+        y2Tensor = yTensor[shape.Mceil * shape.Nceil];
+        p2Tensor = y2Tensor[shape.Mceil * shape.Nceil];
 
         pipe.InitBuffer(l0aBuf, DOUBLE * DATA_COUNT * sizeof(T));
         aTensor = l0aBuf.Get<T>();
@@ -78,15 +80,10 @@ public:
         shape.fractalN = (shape.N + CEIL_SIZE - 1) / CEIL_SIZE;
         shape.Mceil = shape.fractalM * CEIL_SIZE;
         shape.Nceil = shape.fractalN * CEIL_SIZE;
-        shape.calM = shape.Mceil;
 
-        if constexpr (MM_MODE == MM_SPLIT_MODE) {
-            int64_t splitM = (shape.Mceil + BASE_SIZE - 1) / BASE_SIZE;
-            int64_t splitN = (shape.Nceil + BASE_SIZE - 1) / BASE_SIZE;
-            matmulInfo.splitCount = splitM * splitN;
-            matmulInfo.splitCount2 = matmulInfo.splitCount * splitN;
-            matmulInfo.splitCount1 = matmulInfo.splitCount * splitM;
-        }
+        int64_t splitN = (shape.Nceil + BASE_SIZE - 1) / BASE_SIZE;
+        matmulInfo.splitCount = splitN;
+        matmulInfo.splitCount2 = splitN * splitN;
         invalidK = (shape.K * shape.M - shape.Mceil) / shape.M;
     }
 
@@ -96,21 +93,18 @@ public:
         l0empty.setall();
         outempty.setall();
         // set zero for L1
-        int dataCount = shape.calM * shape.calM + shape.Nceil * shape.Nceil +
-                        DOUBLE * DOUBLE * shape.calM * shape.Nceil;
+        int dataCount = shape.Nceil * shape.Nceil + DOUBLE * DOUBLE * shape.Mceil * shape.Nceil;
         InitConstValue(xTensor, {1, static_cast<uint16_t>(dataCount / CEIL_SIZE), 0, (T)0});
         AscendC::PipeBarrier<PIPE_MTE2>();
-        // Preload P1,P2
+        // Preload P2
         CrossCoreWaitFlag(VEC_CUBE_SYNC_ID);
         CopyGmToL1(p2Tensor, p2GM, shape.N, shape.N, shape.Nceil);
 
         for (int64_t startK = shape.K1; startK < shape.K2; startK += shape.perK) {
             int64_t endK = (startK + shape.perK > shape.K2) ? shape.K2 : (startK + shape.perK);
             bool isLast = (endK == shape.K);
-            if constexpr (MM_MODE == MM_SPLIT_MODE) {
-                for (int64_t k = startK; k < endK; ++k) {
-                    ProcessSplitK(k, isLast);
-                }
+            for (int64_t k = startK; k < endK; ++k) {
+                ProcessSplitK(k, isLast);
             }
             CrossCoreSetFlag<SYNC_MODE2, PIPE_FIX>(CUBE_VEC_SYNC_ID);
         }
@@ -159,7 +153,7 @@ public:
     }
 
     aifunc void ProcessSplitXP2(int64_t k, bool isTail)
-    { // 20,32,16
+    {
         int64_t c = (k - shape.K1) * (matmulInfo.splitCount);
         int64_t p = (k - shape.K1) * (matmulInfo.splitCount2);
         l1ready.wait();
@@ -230,8 +224,8 @@ private:
     FlatQuantShapeInfo shape;
     MatmulInfo matmulInfo;
     GlobalTensor<T> xGM;
-    GlobalTensor<T> p1GM;
     GlobalTensor<T> p2GM;
+    GlobalTensor<int64_t> groupListGM;
     GlobalTensor<T> outnzGM;
 
     TBuf<TPosition::A1> l1Buf;
@@ -243,7 +237,6 @@ private:
     LocalTensor<T> x2Tensor;
     LocalTensor<T> yTensor;
     LocalTensor<T> y2Tensor;
-    LocalTensor<T> p1Tensor;
     LocalTensor<T> p2Tensor;
     LocalTensor<T> aTensor;
     LocalTensor<T> a2Tensor;
@@ -263,4 +256,4 @@ private:
 };
 } // namespace FlatQuantNS
 
-#endif // FLAT_QUANT_CUBE_H
+#endif // FLAT_QUANT_CUBE_ONE_H

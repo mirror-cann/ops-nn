@@ -33,6 +33,16 @@
                     "shape": [
                         -2
                     ]
+                },
+                {
+                    "name": "group_list",
+                    "index": 3,
+                    "dtype": "int64",
+                    "format": "ND",
+                    "paramType": "optional",
+                    "shape": [
+                        -2
+                    ]
                 }
             ],
             "outputs": [
@@ -72,6 +82,11 @@
                     "name": "dst_type_max",
                     "dtype": "float",
                     "value": 0.0
+                },
+                {
+                    "name": "group_list_type",
+                    "dtype": "int",
+                    "value": 0
                 }
             ]
         },
@@ -107,6 +122,16 @@
                     "shape": [
                         -2
                     ]
+                },
+                {
+                    "name": "group_list",
+                    "index": 3,
+                    "dtype": "int64",
+                    "format": "ND",
+                    "paramType": "optional",
+                    "shape": [
+                        -2
+                    ]
                 }
             ],
             "outputs": [
@@ -146,6 +171,11 @@
                     "name": "dst_type_max",
                     "dtype": "float",
                     "value": 0.0
+                },
+                {
+                    "name": "group_list_type",
+                    "dtype": "int",
+                    "value": 0
                 }
             ]
         }
