@@ -54,6 +54,7 @@ static const int64_t SPATIAL_SHAPES_DIM_LIMIT = 2;
 static const int64_t LEVEL_START_DIM_LIMIT = 1;
 static const int64_t LOCATION_DIM_LIMIT = 6;
 static const int64_t ATTN_WEIGHT_DIM_LIMIT = 5;
+static const int64_t OUTPUT_DIM_LIMIT = 3;
 static const int64_t DIM_ONE = 1;
 static const int64_t DIM_FIVE = 5;
 
@@ -126,13 +127,14 @@ static bool CheckDtypeValid(const aclTensor* value, const aclTensor* spatialShap
 }
 
 static bool CheckTensorDimCount(const aclTensor* value, const aclTensor* spatialShape, const aclTensor* levelStartIndex,
-                                const aclTensor* location, const aclTensor* attnWeight)
+                                const aclTensor* location, const aclTensor* attnWeight, const aclTensor* output)
 {
     OP_CHECK_WRONG_DIMENSION(value, VALUE_DIM_LIMIT, return false);
     OP_CHECK_WRONG_DIMENSION(spatialShape, SPATIAL_SHAPES_DIM_LIMIT, return false);
     OP_CHECK_WRONG_DIMENSION(levelStartIndex, LEVEL_START_DIM_LIMIT, return false);
     OP_CHECK_WRONG_DIMENSION(location, LOCATION_DIM_LIMIT, return false);
     OP_CHECK_WRONG_DIMENSION(attnWeight, ATTN_WEIGHT_DIM_LIMIT, return false);
+    OP_CHECK_WRONG_DIMENSION(output, OUTPUT_DIM_LIMIT, return false);
     return true;
 }
 
@@ -169,9 +171,9 @@ static bool CheckDimValueRange(const op::Shape& locationShape, const op::Shape& 
 }
 
 static bool CheckShape(const aclTensor* value, const aclTensor* spatialShape, const aclTensor* levelStartIndex,
-                       const aclTensor* location, const aclTensor* attnWeight)
+                       const aclTensor* location, const aclTensor* attnWeight, const aclTensor* output)
 {
-    CHECK_RET(CheckTensorDimCount(value, spatialShape, levelStartIndex, location, attnWeight), false);
+    CHECK_RET(CheckTensorDimCount(value, spatialShape, levelStartIndex, location, attnWeight, output), false);
 
     auto spatialShapeShape = spatialShape->GetViewShape();
     int64_t spatialLastDim = spatialShapeShape.GetDim(DIM_ONE);
@@ -216,7 +218,7 @@ static aclnnStatus CheckParams(const aclTensor* value, const aclTensor* spatialS
               ACLNN_ERR_PARAM_INVALID);
 
     // 3. 检查输入的shape
-    CHECK_RET(CheckShape(value, spatialShape, levelStartIndex, location, attnWeight), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckShape(value, spatialShape, levelStartIndex, location, attnWeight, output), ACLNN_ERR_PARAM_INVALID);
     return ACLNN_SUCCESS;
 }
 
