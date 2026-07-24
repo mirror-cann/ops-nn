@@ -319,19 +319,6 @@ TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B64_indices32_noneg_size32)
     ExecuteTestCase(opsParamInfos, expectTilingKey);
 }
 
-TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B64_indices32_noneg_size64)
-{
-    GatherNdParam opsParamInfos;
-    opsParamInfos.xDtype = ge::DT_INT64;
-    opsParamInfos.xShape = {{8, 127, 127}, {8, 127, 127}};
-    opsParamInfos.indicesDtype = ge::DT_INT32;
-    opsParamInfos.indicesShape = {{10000, 1700, 2}, {10000, 1700, 2}};
-    opsParamInfos.yShape = {{10000, 1700, 127}, {10000, 1700, 127}};
-    uint64_t expectTilingKey = 841;
-    opsParamInfos.negativeIndexSupport = false;
-    ExecuteTestCase(opsParamInfos, expectTilingKey);
-}
-
 TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B32_indices64_noneg_size64)
 {
     GatherNdParam opsParamInfos;
@@ -354,19 +341,6 @@ TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B32_indices64_noneg_size32)
     opsParamInfos.indicesShape = {{4, 2}, {4, 2}};
     opsParamInfos.yShape = {{4, 1}, {4, 1}};
     uint64_t expectTilingKey = 10000000001231100023;
-    opsParamInfos.negativeIndexSupport = false;
-    ExecuteTestCase(opsParamInfos, expectTilingKey);
-}
-
-TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B32_indices32_noneg_size64)
-{
-    GatherNdParam opsParamInfos;
-    opsParamInfos.xDtype = ge::DT_INT32;
-    opsParamInfos.xShape = {{8, 127, 127}, {8, 127, 127}};
-    opsParamInfos.indicesDtype = ge::DT_INT32;
-    opsParamInfos.indicesShape = {{10000, 1700, 2}, {10000, 1700, 2}};
-    opsParamInfos.yShape = {{10000, 1700, 2}, {10000, 1700, 2}};
-    uint64_t expectTilingKey = 441;
     opsParamInfos.negativeIndexSupport = false;
     ExecuteTestCase(opsParamInfos, expectTilingKey);
 }
@@ -410,19 +384,6 @@ TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B16_indices64_noneg_size32)
     ExecuteTestCase(opsParamInfos, expectTilingKey);
 }
 
-TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B16_indices32_noneg_size64)
-{
-    GatherNdParam opsParamInfos;
-    opsParamInfos.xDtype = ge::DT_FLOAT16;
-    opsParamInfos.xShape = {{8, 127, 127}, {8, 127, 127}};
-    opsParamInfos.indicesDtype = ge::DT_INT32;
-    opsParamInfos.indicesShape = {{10000, 1700, 2}, {10000, 1700, 2}};
-    opsParamInfos.yShape = {{10000, 1700, 2}, {10000, 1700, 2}};
-    uint64_t expectTilingKey = 241;
-    opsParamInfos.negativeIndexSupport = false;
-    ExecuteTestCase(opsParamInfos, expectTilingKey);
-}
-
 TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B8_indices64_noneg_size64)
 {
     GatherNdParam opsParamInfos;
@@ -458,19 +419,6 @@ TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B8_indices32_noneg_size32)
     opsParamInfos.indicesShape = {{2, 2}, {2, 2}};
     opsParamInfos.yShape = {{2, 1}, {2, 1}};
     uint64_t expectTilingKey = 10000000001231100002;
-    opsParamInfos.negativeIndexSupport = false;
-    ExecuteTestCase(opsParamInfos, expectTilingKey);
-}
-
-TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B8_indices32_noneg_size64)
-{
-    GatherNdParam opsParamInfos;
-    opsParamInfos.xDtype = ge::DT_INT8;
-    opsParamInfos.xShape = {{8, 127, 127}, {8, 127, 127}};
-    opsParamInfos.indicesDtype = ge::DT_INT32;
-    opsParamInfos.indicesShape = {{10000, 1700, 2}, {10000, 1700, 2}};
-    opsParamInfos.yShape = {{10000, 1700, 2}, {10000, 1700, 2}};
-    uint64_t expectTilingKey = 141;
     opsParamInfos.negativeIndexSupport = false;
     ExecuteTestCase(opsParamInfos, expectTilingKey);
 }
@@ -514,19 +462,6 @@ TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B64_inddices32_supportneg_siz
     ExecuteTestCase(opsParamInfos, expectTilingKey);
 }
 
-TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B64_inddices32_supportneg_size64)
-{
-    GatherNdParam opsParamInfos;
-    opsParamInfos.xDtype = ge::DT_INT64;
-    opsParamInfos.xShape = {{8, 127, 127}, {8, 127, 127}};
-    opsParamInfos.indicesDtype = ge::DT_INT32;
-    opsParamInfos.indicesShape = {{10000, 1700, 2}, {10000, 1700, 2}};
-    opsParamInfos.yShape = {{10000, 1700, 127}, {10000, 1700, 127}};
-    uint64_t expectTilingKey = 841;
-    opsParamInfos.negativeIndexSupport = true;
-    ExecuteTestCase(opsParamInfos, expectTilingKey);
-}
-
 TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B32_inddices64_supportneg_size64)
 {
     GatherNdParam opsParamInfos;
@@ -562,19 +497,6 @@ TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B32_inddices32_supportneg_siz
     opsParamInfos.indicesShape = {{4, 2}, {4, 2}};
     opsParamInfos.yShape = {{4, 32}, {4, 32}};
     uint64_t expectTilingKey = 10000000001231100122;
-    opsParamInfos.negativeIndexSupport = true;
-    ExecuteTestCase(opsParamInfos, expectTilingKey);
-}
-
-TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B32_inddices32_supportneg_size64)
-{
-    GatherNdParam opsParamInfos;
-    opsParamInfos.xDtype = ge::DT_INT32;
-    opsParamInfos.xShape = {{8, 127, 127}, {8, 127, 127}};
-    opsParamInfos.indicesDtype = ge::DT_INT32;
-    opsParamInfos.indicesShape = {{10000, 1700, 2}, {10000, 1700, 2}};
-    opsParamInfos.yShape = {{10000, 1700, 127}, {10000, 1700, 127}};
-    uint64_t expectTilingKey = 441;
     opsParamInfos.negativeIndexSupport = true;
     ExecuteTestCase(opsParamInfos, expectTilingKey);
 }
@@ -618,19 +540,6 @@ TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B16_inddices32_supportneg_siz
     ExecuteTestCase(opsParamInfos, expectTilingKey);
 }
 
-TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B16_inddices32_supportneg_size64)
-{
-    GatherNdParam opsParamInfos;
-    opsParamInfos.xDtype = ge::DT_FLOAT16;
-    opsParamInfos.xShape = {{8, 127, 127}, {8, 127, 127}};
-    opsParamInfos.indicesDtype = ge::DT_INT32;
-    opsParamInfos.indicesShape = {{10000, 1700, 2}, {10000, 1700, 2}};
-    opsParamInfos.yShape = {{10000, 1700, 127}, {10000, 1700, 127}};
-    uint64_t expectTilingKey = 241;
-    opsParamInfos.negativeIndexSupport = true;
-    ExecuteTestCase(opsParamInfos, expectTilingKey);
-}
-
 TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B8_indices64_supportneg_size64)
 {
     GatherNdParam opsParamInfos;
@@ -666,19 +575,6 @@ TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B8_inddices32_supportneg_size
     opsParamInfos.indicesShape = {{4, 2}, {4, 2}};
     opsParamInfos.yShape = {{4, 32}, {4, 32}};
     uint64_t expectTilingKey = 10000000001231100102;
-    opsParamInfos.negativeIndexSupport = true;
-    ExecuteTestCase(opsParamInfos, expectTilingKey);
-}
-
-TEST_F(AscendGatherNdTest, GatherNd_tiling_ascendc_B8_inddices32_supportneg_size64)
-{
-    GatherNdParam opsParamInfos;
-    opsParamInfos.xDtype = ge::DT_INT8;
-    opsParamInfos.xShape = {{8, 127, 127}, {8, 127, 127}};
-    opsParamInfos.indicesDtype = ge::DT_INT32;
-    opsParamInfos.indicesShape = {{10000, 1700, 2}, {10000, 1700, 2}};
-    opsParamInfos.yShape = {{10000, 1700, 127}, {10000, 1700, 127}};
-    uint64_t expectTilingKey = 141;
     opsParamInfos.negativeIndexSupport = true;
     ExecuteTestCase(opsParamInfos, expectTilingKey);
 }

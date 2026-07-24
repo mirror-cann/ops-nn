@@ -172,8 +172,8 @@ void InplaceIndexAddDeterminsticTiling::DoOpTilingForDeterminstic()
             --ubIndexFactor_;
             restSize = GetRestAvailableSize(ubIndexFactor_, varTypeSize_, halfUbSize, afterAxis_, indicesDtype_);
         }
-        if (ubIndexFactor_ > indicesAxis_) {
-            ubIndexFactor_ = indicesAxis_;
+        if (ubIndexFactor_ > eachCoreIndexCount_) {
+            ubIndexFactor_ = eachCoreIndexCount_;
         }
 
         /* second step */
@@ -191,8 +191,8 @@ void InplaceIndexAddDeterminsticTiling::DoOpTilingForDeterminstic()
                              ubQuantaIndxFactor_ * Ops::Base::CeilAlign(INT32_BYTES * afterAxis_, ubBlock);
             restSize = halfUbSize - occupy;
         }
-        if (ubQuantaIndxFactor_ > indicesAxis_) {
-            ubQuantaIndxFactor_ = indicesAxis_;
+        if (ubQuantaIndxFactor_ > eachCoreIndexCount_) {
+            ubQuantaIndxFactor_ = eachCoreIndexCount_;
         }
 
         /* third step */
@@ -202,9 +202,9 @@ void InplaceIndexAddDeterminsticTiling::DoOpTilingForDeterminstic()
         restSize = static_cast<int64_t>(-1);
         while (restSize <= 0) {
             --ubVarFactor_;
-            int64_t occupy = ubQuantaIndxFactor_ * Ops::Base::CeilAlign(INT32_BYTES * afterAxis_, ubBlock) +
-                             ubQuantaIndxFactor_ * Ops::Base::CeilAlign(FP32_BYTES * afterAxis_, ubBlock) +
-                             ubQuantaIndxFactor_ * Ops::Base::CeilAlign(FP32_BYTES * afterAxis_, ubBlock);
+            int64_t occupy = ubVarFactor_ * Ops::Base::CeilAlign(INT32_BYTES * afterAxis_, ubBlock) +
+                             ubVarFactor_ * Ops::Base::CeilAlign(FP32_BYTES * afterAxis_, ubBlock) +
+                             ubVarFactor_ * Ops::Base::CeilAlign(FP32_BYTES * afterAxis_, ubBlock);
             restSize = halfUbSize - occupy;
         }
         if (ubVarFactor_ > eachCoreVarCount_) {
@@ -222,10 +222,10 @@ void InplaceIndexAddDeterminsticTiling::DoOpTilingForDeterminstic()
         restSize = static_cast<int64_t>(-1);
         while (restSize <= 0) {
             --ubVarOptiFactor_;
-            int64_t occupy = Ops::Base::CeilAlign(ubQuantaIndxFactor_ * indicesTypeSize_, ubBlock) +
-                             ubQuantaIndxFactor_ * Ops::Base::CeilAlign(INT32_BYTES * afterAxis_, ubBlock) +
-                             ubQuantaIndxFactor_ * Ops::Base::CeilAlign(FP32_BYTES * afterAxis_, ubBlock) +
-                             ubQuantaIndxFactor_ * Ops::Base::CeilAlign(FP32_BYTES * afterAxis_, ubBlock);
+            int64_t occupy = Ops::Base::CeilAlign(ubVarOptiFactor_ * indicesTypeSize_, ubBlock) +
+                             ubVarOptiFactor_ * Ops::Base::CeilAlign(INT32_BYTES * afterAxis_, ubBlock) +
+                             ubVarOptiFactor_ * Ops::Base::CeilAlign(FP32_BYTES * afterAxis_, ubBlock) +
+                             ubVarOptiFactor_ * Ops::Base::CeilAlign(FP32_BYTES * afterAxis_, ubBlock);
             restSize = halfUbSize - occupy;
         }
         if (ubVarOptiFactor_ > eachCoreVarCount_) {
@@ -302,7 +302,6 @@ ge::graphStatus InplaceIndexAddDeterminsticTiling::GetWorkspaceSize()
         int64_t rCoutWsSize = preAxis_ * varInAxis_ * INT32_BYTES;
         int64_t rValueWsSize = varAxis_ * FP32_BYTES;
         int64_t sumQuantaIntWsSize = varAxis_ * INT32_BYTES;
-        ;
         int64_t sumWsSize = totalCoreNum_ * eachCoreIndexCount_ * afterAxis_ * FP32_BYTES;
         int64_t sumIdxWsSize = totalCoreNum_ * eachCoreIndexCount_ * indicesTypeSize_;
 

@@ -404,8 +404,11 @@ ge::graphStatus GatherNdSimtTiling::DoOpTiling()
         CalcSimdTiling();
         return ge::GRAPH_SUCCESS;
     }
-
-    if (rank_ > static_cast<uint64_t>(1) && gatherSize_ * xDtypeSize_ <= SIMD_THRES && indicesNum_ >= MIN_INDICES_NUM) {
+    bool MixkernelNotSupport = (indicesDtypeSize_ == INPUT_DTYPE_B32) &&
+                               (indicesNum_ > static_cast<uint64_t>(INT32_MAX) ||
+                                outputSize_ > static_cast<uint64_t>(INT32_MAX));
+    if (!MixkernelNotSupport && rank_ > static_cast<uint64_t>(1) && gatherSize_ * xDtypeSize_ <= SIMD_THRES &&
+        indicesNum_ >= MIN_INDICES_NUM) {
         isMixKernel_ = true;
         return DoMixKernelOpTiling();
     }
