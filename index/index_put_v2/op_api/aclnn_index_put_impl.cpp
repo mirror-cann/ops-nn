@@ -939,6 +939,7 @@ static bool IndicesBroadcastUndeter(FVector<const aclTensor*, DIMLIMIT>& allIndi
         }
         if (!allIndices[i]->IsEmpty()) { // scalar tensor need broadcast, empty tensor not
             OP_LOGD("IndicesBroadcast start, index is %d", i);
+            allIndices[i] = l0op::Contiguous(allIndices[i], executor);
             allIndices[i] = l0op::BroadcastTo(allIndices[i], valueShapeBroad, executor);
         }
     }
@@ -963,12 +964,19 @@ static const aclTensor* IndexPutV2Process(const aclTensor* selfCast, const aclTe
     const aclTensor* valueBroadcast;
     const aclTensor* tmp = selfCast;
     if (isNonContiguous) {
-        allIndicesTensorList = executor->AllocTensorList(allDefinedIndices.data(), allDefinedIndices.size());
         if (valuesCast->GetViewShape().IsScalar()) {
             bool iscontiguousIdx = CheckIfContiguous(indices, definedIndices, allIndices, executor);
-            valueBroadcast = valuesToBroadcastArch3510(selfCast, definedIndices, valuesCast, masks, iscontiguousIdx,
+            FVector<const aclTensor*, DIMLIMIT> broadcastIndices;
+            for (size_t i = 0; i < allDefinedIndices.size(); i++) {
+                broadcastIndices.push_back(allDefinedIndices[i]);
+            }
+            auto ret = IndicesBroadcastUndeter(broadcastIndices, executor);
+            CHECK_RET(ret, nullptr);
+            allIndicesTensorList = executor->AllocTensorList(broadcastIndices.data(), broadcastIndices.size());
+            valueBroadcast = valuesToBroadcastArch3510(selfCast, broadcastIndices, valuesCast, masks, iscontiguousIdx,
                                                        executor);
         } else {
+            allIndicesTensorList = executor->AllocTensorList(allDefinedIndices.data(), allDefinedIndices.size());
             valueBroadcast = executor->CreateView(valuesCast, valuesCast->GetViewShape(), valuesCast->GetStorageShape(),
                                                   valuesCast->GetViewStrides(), valuesCast->GetViewOffset());
         }
@@ -1457,8 +1465,7 @@ aclnnStatus aclnnIndexPutImplGetWorkspaceSize(aclTensor* selfRef, const aclTenso
                                                 uniqueExecutor.get());
         CHECK_RET(indexPutOpOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
         const aclTensor* arch3510Result = indexPutOpOut;
-        if (!useSortedV2Opt &&
-            indexPutOpOut->GetDataType() != selfRef->GetDataType() &&
+        if (!useSortedV2Opt && indexPutOpOut->GetDataType() != selfRef->GetDataType() &&
             (!usePutV2SpeOpt || (usePutV2SpeOpt && selfRef->GetDataType() != op::DataType::DT_INT8))) {
             arch3510Result = l0op::Cast(indexPutOpOut, selfRef->GetDataType(), uniqueExecutor.get());
             CHECK_RET(arch3510Result != nullptr, ACLNN_ERR_INNER_NULLPTR);
